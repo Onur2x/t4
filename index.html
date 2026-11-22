@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Servis Talebi</title>
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#0b1220;color:#e8eef7;overscroll-behavior-y:none}
+button,input{font-family:inherit}
+#app{display:none}
+#app.acik{display:block}
+header{position:sticky;top:0;z-index:20;background:rgba(11,18,32,.94);backdrop-filter:blur(12px);border-bottom:1px solid #1e293b;padding:12px 16px;display:flex;align-items:center;gap:10px}
+header .lg{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#0ea5e9,#0369a1);display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+header b{font-size:15px;display:block;line-height:1.15}
+header small{font-size:11.5px;color:#7d8ea8;display:block}
+header .cikis{margin-left:auto;background:#1e293b;color:#c7d3e3;border:1px solid #334155;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer}
+main{max-width:520px;margin:0 auto;padding:16px 14px 40px}
+.tarihKart{background:linear-gradient(135deg,#0c4a6e,#155e75);border:1px solid #334155;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.tarihKart .em{font-size:24px}
+.tarihKart b{font-size:16px;display:block}
+.tarihKart small{color:#bae6fd;font-size:12px}
+.card{background:linear-gradient(180deg,#16233f,#111c33);border:1px solid #1e293b;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card h3{margin:0 0 10px;font-size:12px;letter-spacing:1px;color:#8fa1b8;text-transform:uppercase;font-weight:800}
+.buyukSatir{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.buyuk{position:relative;border:2px solid #334155;background:#0d1626;color:#93a3b8;border-radius:16px;padding:22px 12px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:900;font-size:17px;letter-spacing:.5px}
+.buyuk .em{font-size:30px}
+.buyuk small{font-size:11px;font-weight:700;opacity:.75;letter-spacing:.5px}
+.buyuk:active{transform:scale(.97)}
+.buyuk.sabah.secili{background:linear-gradient(160deg,#f59e0b,#b45309);border-color:#fbbf24;color:#1c1203;box-shadow:0 8px 26px rgba(245,158,11,.35)}
+.buyuk.aksam.secili{background:linear-gradient(160deg,#6366f1,#4338ca);border-color:#a5b4fc;color:#eef2ff;box-shadow:0 8px 26px rgba(99,102,241,.35)}
+.yonBas{font-size:11px;letter-spacing:1.2px;color:#8fa1b8;font-weight:800;text-transform:uppercase;margin:0 0 8px}
+.seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:#0d1626;border:1px solid #334155;border-radius:14px;padding:5px;gap:5px}
+.seg .kaydir{position:absolute;top:5px;bottom:5px;left:5px;width:calc(50% - 7.5px);border-radius:10px;background:linear-gradient(135deg,#0ea5e9,#0369a1);transition:transform .22s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 14px rgba(14,165,233,.35)}
+.seg.sag .kaydir{transform:translateX(calc(100% + 5px))}
+.seg button{position:relative;z-index:1;background:none;border:none;color:#7d8ea8;font-weight:900;font-size:13.5px;padding:12px 6px;cursor:pointer;border-radius:10px;letter-spacing:.4px;transition:color .18s}
+.seg button.on{color:#fff}
+.eylem{display:grid;gap:10px;margin-top:16px}
+.eylem button{border:none;border-radius:14px;padding:17px;font-size:15.5px;font-weight:900;cursor:pointer;transition:.15s;letter-spacing:.3px}
+.eylem button:active{transform:scale(.985)}
+.eylem .iste{background:linear-gradient(135deg,#22c55e,#15803d);color:#04210f;box-shadow:0 8px 24px rgba(34,197,94,.3)}
+.eylem .iptal{background:#1e293b;color:#fca5a5;border:1px solid #7f1d1d}
+.eylem button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+#mesaj{margin-top:12px;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700;display:none;text-align:center}
+#mesaj.iyi{display:block;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.5);color:#86efac}
+#mesaj.kotu{display:block;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.5);color:#fca5a5}
+#mesaj.bilgi{display:block;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.45);color:#7dd3fc}
+.bugun{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0d1626;border:1px solid #1e293b}
+.bugun .nokta{width:10px;height:10px;border-radius:99px;flex:0 0 auto;box-shadow:0 0 10px currentColor}
+.bugun b{font-size:14px;display:block}
+.bugun small{font-size:11.5px;color:#8fa1b8}
+.bugun .tick{margin-left:auto;font-size:20px}
+.bos{color:#5f708a;font-size:13px;text-align:center;padding:14px}
+.kv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid #1e293b;font-size:13px}
+.kv:last-child{border-bottom:none}
+.kv .sol{display:flex;flex-direction:column;gap:2px}
+.kv .sol b{font-weight:800}
+.kv .sol small{color:#7d8ea8;font-size:11px}
+.rozet{font-size:10.5px;font-weight:900;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.rozet.aktif{background:rgba(34,197,94,.18);color:#4ade80}
+.rozet.iptal{background:rgba(239,68,68,.18);color:#f87171}
+.modal{position:fixed;inset:0;background:radial-gradient(800px 500px at 50% -10%,#164e63,#0b1220);z-index:100;display:none;place-items:center;padding:20px}
+.modal.acik{display:grid}
+.kutu{width:100%;max-width:360px;background:linear-gradient(180deg,#16233f,#111c33);border:1px solid #1e293b;border-radius:20px;padding:26px 22px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.kutu .lg{width:62px;height:62px;font-size:31px;background:rgba(14,165,233,.14);border-radius:18px;display:grid;place-items:center;margin:0 auto 12px}
+.kutu h2{margin:0 0 4px;font-size:19px;text-align:center}
+.kutu p{margin:0 0 16px;font-size:12.5px;color:#8fa1b8;text-align:center;line-height:1.5}
+label{display:block;font-size:12px;color:#8fa1b8;font-weight:700;margin:10px 0 5px}
+input{width:100%;background:#0d1626;color:#e8eef7;border:1px solid #334155;border-radius:12px;padding:13px;font-size:16px}
+input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
+.kutu .btn{width:100%;margin-top:16px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:900;background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#fff;cursor:pointer}
+.kutu .btn:active{transform:scale(.99)}
+.hata{display:none;margin-top:12px;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;text-align:center;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.5);color:#fca5a5}
+.hata.goster{display:block}
+</style>
+</head>
+<body>
+
+<div id="loginModal" class="modal acik">
+  <div class="kutu">
+    <div class="lg">🚐</div>
+    <h2>Servis Talebi</h2>
+    <p>Sicil ve şifrenle giriş yap.<br>İlk girişte şifre = sicil numaran.</p>
+    <label>Sicil</label>
+    <input id="inSicil" inputmode="numeric" autocomplete="off" placeholder="Sicil numaran">
+    <label>Şifre</label>
+    <input id="inSifre" type="password" autocomplete="off" placeholder="Şifre">
+    <div id="loginHata" class="hata"></div>
+    <button id="girisBtn" class="btn">Giriş Yap</button>
+  </div>
+</div>
+
+<div id="sifreModal" class="modal">
+  <div class="kutu">
+    <div class="lg">🔐</div>
+    <h2>Şifreni Belirle</h2>
+    <p id="sfAciklama">İlk girişin. Kendi şifreni seç — bir daha sicilini bilen giremesin.</p>
+    <label>Yeni şifre (en az 4 karakter)</label>
+    <input id="sfYeni" type="password" autocomplete="new-password" placeholder="Yeni şifre">
+    <label>Yeni şifre (tekrar)</label>
+    <input id="sfTekrar" type="password" autocomplete="new-password" placeholder="Tekrar yaz">
+    <div id="sfHata" class="hata"></div>
+    <button id="sfBtn" class="btn">Şifreyi Kaydet</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="lg">🚐</div>
+    <div><b>Servis Talebi</b><small id="kimTxt">—</small></div>
+    <button id="cikisBtn" class="cikis">Çıkış</button>
+  </header>
+  <main>
+    <div class="tarihKart">
+      <div class="em">📅</div>
+      <div><b id="tarihTxt">—</b><small id="saatTxt">—</small></div>
+    </div>
+
+    <div class="card">
+      <h3>Vardiya</h3>
+      <div class="buyukSatir">
+        <button id="bSabah" class="buyuk sabah"><span class="em">🌅</span>SABAH<small>Sabah servisi</small></button>
+        <button id="bAksam" class="buyuk aksam"><span class="em">🌙</span>AKŞAM<small>Akşam servisi</small></button>
+      </div>
+
+      <p class="yonBas">Yön / Güzergâh</p>
+      <div class="seg" id="yonSeg">
+        <span class="kaydir"></span>
+        <button data-yon="karadeniz" class="on">KARADENİZ</button>
+        <button data-yon="mselam">M.SELAM</button>
+      </div>
+
+      <div class="eylem">
+        <button id="isteBtn" class="iste">✅ Servis İstiyorum</button>
+        <button id="iptalBtn" class="iptal">✖️ Servis İstediğimi İptal Et</button>
+      </div>
+      <div id="mesaj"></div>
+    </div>
+
+    <div class="card">
+      <h3>Bugünkü talebim</h3>
+      <div id="bugunKutu"><div class="bos">Henüz talebin yok</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Geçmiş taleplerim</h3>
+      <div id="gecmisKutu"><div class="bos">—</div></div>
+    </div>
+  </main>
+</div>
+
+<script src="supabase-config.js"></script>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const cfg = window.__SB__ || {};
+const sb = window.supabase?.createClient
+  ? window.supabase.createClient(cfg.URL, cfg.ANON_KEY)
+  : (await import("https://esm.sh/@supabase/supabase-js@2")).createClient(cfg.URL, cfg.ANON_KEY);
+
+const DEPO = "t4_oturum";
+let S = { sicil: "", ad: "", admin: false };
+let seciliVardiya = "";
+let seciliYon = "karadeniz";
+
+const p2 = (n) => String(n).padStart(2, "0");
+const yerelTarih = () => { const d = new Date(); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; };
+const yerelSaat = () => { const d = new Date(); return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+const GUNLER = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+const AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
+function tarihUzun(t) {
+  const d = new Date(t + "T12:00:00");
+  return `${d.getDate()} ${AYLAR[d.getMonth()]} ${d.getFullYear()} ${GUNLER[d.getDay()]}`;
+}
+function tarihKisa(t) {
+  const d = new Date(t + "T12:00:00");
+  return `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()} ${GUNLER[d.getDay()]}`;
+}
+
+async function hashla(sicil, sifre) {
+  const metin = `t4|${sicil}|${sifre}|servis`;
+  if (window.crypto?.subtle) {
+    const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(metin));
+    return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  }
+  let h1 = 0, h2 = 5381;
+  for (let i = 0; i < metin.length; i++) { h1 = (h1 * 31 + metin.charCodeAt(i)) | 0; h2 = ((h2 << 5) + h2) ^ metin.charCodeAt(i); }
+  return "y" + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+}
+
+function hata(el, m) { const e = $(el); e.textContent = m; e.classList.add("goster"); }
+function hataSil(el) { $(el).classList.remove("goster"); }
+function mesaj(m, tip) { const e = $("mesaj"); e.textContent = m; e.className = tip || ""; }
+
+function oturumKaydet() { try { localStorage.setItem(DEPO, JSON.stringify({ ...S, t: Date.now() })); } catch (e) {} }
+function oturumOku() {
+  try {
+    const o = JSON.parse(localStorage.getItem(DEPO) || "null");
+    if (!o || !o.sicil) return null;
+    if (Date.now() - (o.t || 0) > 30 * 24 * 3600 * 1000) return null;
+    return o;
+  } catch (e) { return null; }
+}
+function oturumSil() { try { localStorage.removeItem(DEPO); } catch (e) {} }
+
+async function girisYap() {
+  const sicil = $("inSicil").value.trim();
+  const sifre = $("inSifre").value.trim();
+  hataSil("loginHata");
+  if (!sicil || !sifre) return hata("loginHata", "Sicil ve şifre gerekli");
+  const btn = $("girisBtn"); btn.textContent = "Giriş yapılıyor…"; btn.disabled = true;
+  try {
+    const h = await hashla(sicil, sifre);
+    const { data, error } = await sb.rpc("servis_giris", { p_sicil: sicil, p_hash: h });
+    if (error) throw error;
+    if (!data || !data.ok) return hata("loginHata", data?.mesaj || "Giriş başarısız");
+    if (data.mod === "ilk") {
+      if (sifre !== sicil) return hata("loginHata", "İlk girişte şifre = sicil numaran olmalı");
+      sifreBekle = { sicil, ad: data.ad, admin: !!data.admin };
+      $("sfAciklama").textContent = `${data.ad} — ilk girişin. Kendi şifreni belirle, bir daha sicilini bilen giremesin.`;
+      $("sfYeni").value = ""; $("sfTekrar").value = ""; hataSil("sfHata");
+      $("sifreModal").classList.add("acik");
+      return;
+    }
+    S = { sicil, ad: data.ad, admin: !!data.admin };
+    oturumKaydet();
+    ac();
+  } catch (e) {
+    hata("loginHata", "Bağlantı hatası: " + (e.message || e));
+  } finally {
+    btn.textContent = "Giriş Yap"; btn.disabled = false;
+  }
+}
+
+let sifreBekle = null;
+async function sifreKaydet() {
+  const y = $("sfYeni").value.trim(), t = $("sfTekrar").value.trim();
+  hataSil("sfHata");
+  if (y.length < 4) return hata("sfHata", "Şifre en az 4 karakter olmalı");
+  if (sifreBekle && y === sifreBekle.sicil) return hata("sfHata", "Şifre sicil numaran olamaz");
+  if (y !== t) return hata("sfHata", "Şifreler eşleşmiyor");
+  const btn = $("sfBtn"); btn.textContent = "Kaydediliyor…"; btn.disabled = true;
+  try {
+    const h = await hashla(sifreBekle.sicil, y);
+    const { data, error } = await sb.rpc("servis_sifre_kaydet", { p_sicil: sifreBekle.sicil, p_hash: h });
+    if (error) throw error;
+    if (!data) return hata("sfHata", "Şifre kaydedilemedi");
+    S = { ...sifreBekle };
+    oturumKaydet();
+    $("sifreModal").classList.remove("acik");
+    $("loginModal").classList.remove("acik");
+    ac();
+  } catch (e) {
+    hata("sfHata", "Hata: " + (e.message || e));
+  } finally {
+    btn.textContent = "Şifreyi Kaydet"; btn.disabled = false;
+  }
+}
+
+function ac() {
+  $("loginModal").classList.remove("acik");
+  $("app").classList.add("acik");
+  $("kimTxt").textContent = `${S.ad} (${S.sicil})`;
+  seciliVardiya = ""; seciliYon = "karadeniz";
+  yonCiz(); vardiyaCiz(); tarihCiz();
+  bugunYukle(); gecmisYukle();
+}
+
+function tarihCiz() {
+  const d = new Date();
+  $("tarihTxt").textContent = `${d.getDate()} ${AYLAR[d.getMonth()]} ${d.getFullYear()} ${GUNLER[d.getDay()]}`;
+  $("saatTxt").textContent = d.toLocaleTimeString("tr-TR");
+}
+
+function vardiyaCiz() {
+  $("bSabah").classList.toggle("secili", seciliVardiya === "sabah");
+  $("bAksam").classList.toggle("secili", seciliVardiya === "aksam");
+}
+function yonCiz() {
+  const seg = $("yonSeg");
+  seg.classList.toggle("sag", seciliYon === "mselam");
+  seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.yon === seciliYon));
+}
+
+$("bSabah").onclick = () => { seciliVardiya = "sabah"; vardiyaCiz(); };
+$("bAksam").onclick = () => { seciliVardiya = "aksam"; vardiyaCiz(); };
+$("yonSeg").onclick = (e) => {
+  const b = e.target.closest("button[data-yon]");
+  if (!b) return;
+  seciliYon = b.dataset.yon;
+  yonCiz();
+};
+
+const VARD_AD = { sabah: "Sabah", aksam: "Akşam" };
+const YON_AD = { karadeniz: "KARADENİZ", mselam: "M.SELAM" };
+
+async function servisIste() {
+  if (!seciliVardiya) return mesaj("Önce SABAH veya AKŞAM seç", "kotu");
+  const btn = $("isteBtn"); btn.disabled = true;
+  mesaj("Kaydediliyor…", "bilgi");
+  try {
+    const { error } = await sb.from("servis_talep").upsert({
+      sicil: S.sicil, ad: S.ad,
+      gun: yerelTarih(), saat: yerelSaat(),
+      vardiya: seciliVardiya, yon: seciliYon,
+      durum: "aktif", iptal_gun: null, iptal_saat: null,
+      guncellendi: new Date().toISOString()
+    }, { onConflict: "sicil,gun" });
+    if (error) throw error;
+    mesaj(`✅ ${VARD_AD[seciliVardiya]} • ${YON_AD[seciliYon]} servisi istendi`, "iyi");
+    bugunYukle(); gecmisYukle();
+  } catch (e) {
+    mesaj("Hata: " + (e.message || e), "kotu");
+  } finally { btn.disabled = false; }
+}
+
+async function servisIptal() {
+  const btn = $("iptalBtn"); btn.disabled = true;
+  mesaj("İptal ediliyor…", "bilgi");
+  try {
+    const { data, error } = await sb.from("servis_talep")
+      .update({ durum: "iptal", iptal_gun: yerelTarih(), iptal_saat: yerelSaat(), guncellendi: new Date().toISOString() })
+      .eq("sicil", S.sicil).eq("gun", yerelTarih()).eq("durum", "aktif")
+      .select("id");
+    if (error) throw error;
+    if (!data || !data.length) { mesaj("Bugün için aktif talebin yok", "bilgi"); return; }
+    mesaj("✖️ Bugünkü servis talebin iptal edildi", "iyi");
+    bugunYukle(); gecmisYukle();
+  } catch (e) {
+    mesaj("Hata: " + (e.message || e), "kotu");
+  } finally { btn.disabled = false; }
+}
+
+async function bugunYukle() {
+  const k = $("bugunKutu");
+  try {
+    const { data, error } = await sb.from("servis_talep")
+      .select("*").eq("sicil", S.sicil).eq("gun", yerelTarih()).maybeSingle();
+    if (error) throw error;
+    if (!data) { k.innerHTML = '<div class="bos">Henüz talebin yok</div>'; return; }
+    const aktif = data.durum === "aktif";
+    k.innerHTML = `<div class="bugun">
+      <span class="nokta" style="background:${aktif ? "#22c55e" : "#ef4444"};color:${aktif ? "#22c55e" : "#ef4444"}"></span>
+      <div><b>${VARD_AD[data.vardiya] || data.vardiya} • ${YON_AD[data.yon] || data.yon}</b>
+      <small>${String(data.saat).slice(0, 5)} • ${aktif ? "Aktif" : "İptal edildi" + (data.iptal_saat ? " (" + String(data.iptal_saat).slice(0, 5) + ")" : "")}</small></div>
+      <span class="tick">${aktif ? "✅" : "🚫"}</span></div>`;
+    if (aktif) { seciliVardiya = data.vardiya; seciliYon = data.yon; vardiyaCiz(); yonCiz(); }
+  } catch (e) {
+    k.innerHTML = '<div class="bos">Yüklenemedi</div>';
+  }
+}
+
+async function gecmisYukle() {
+  const k = $("gecmisKutu");
+  try {
+    const { data, error } = await sb.from("servis_talep")
+      .select("*").eq("sicil", S.sicil).order("gun", { ascending: false }).limit(15);
+    if (error) throw error;
+    const d = (data || []).filter((x) => x.gun !== yerelTarih());
+    if (!d.length) { k.innerHTML = '<div class="bos">Geçmiş talebin yok</div>'; return; }
+    k.innerHTML = d.map((x) => `<div class="kv">
+      <div class="sol"><b>${VARD_AD[x.vardiya] || x.vardiya} • ${YON_AD[x.yon] || x.yon}</b>
+      <small>${tarihKisa(x.gun)} • ${String(x.saat).slice(0, 5)}${x.durum === "iptal" && x.iptal_saat ? " → iptal " + String(x.iptal_saat).slice(0, 5) : ""}</small></div>
+      <span class="rozet ${x.durum === "aktif" ? "aktif" : "iptal"}">${x.durum === "aktif" ? "Aktif" : "İptal"}</span></div>`).join("");
+  } catch (e) {
+    k.innerHTML = '<div class="bos">Yüklenemedi</div>';
+  }
+}
+
+$("girisBtn").onclick = girisYap;
+$("inSifre").onkeydown = (e) => { if (e.key === "Enter") girisYap(); };
+$("inSicil").onkeydown = (e) => { if (e.key === "Enter") $("inSifre").focus(); };
+$("sfBtn").onclick = sifreKaydet;
+$("sfTekrar").onkeydown = (e) => { if (e.key === "Enter") sifreKaydet(); };
+$("isteBtn").onclick = servisIste;
+$("iptalBtn").onclick = servisIptal;
+$("cikisBtn").onclick = () => {
+  if (!confirm("Çıkış yapılsın mı?")) return;
+  oturumSil(); S = { sicil: "", ad: "", admin: false };
+  $("app").classList.remove("acik");
+  $("loginModal").classList.add("acik");
+  $("inSifre").value = "";
+  hataSil("loginHata");
+};
+
+setInterval(() => { if ($("app").classList.contains("acik")) tarihCiz(); }, 1000);
+
+const mevcut = oturumOku();
+if (mevcut) { S = { sicil: mevcut.sicil, ad: mevcut.ad, admin: !!mevcut.admin }; ac(); }
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
