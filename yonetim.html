@@ -61,6 +61,15 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
 .ekle>div{flex:1 1 140px}
 .kucuk{padding:6px 10px;font-size:11.5px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#c7d3e3;cursor:pointer;font-weight:700}
 .kucuk.tehliye{color:#fca5a5;border-color:#7f1d1d}
+.talepler{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:14px}
+.talepler .card{margin-bottom:0;display:flex;flex-direction:column}
+.talepler .card.sabah{border-top:3px solid #f59e0b}
+.talepler .card.aksam{border-top:3px solid #818cf8}
+.talepler .card.sabah h2{color:#fbbf24}
+.talepler .card.aksam h2{color:#a5b4fc}
+.talepler h2{display:flex;align-items:center;gap:8px}
+.talepler h2 .say{margin-left:auto;font-size:12px;letter-spacing:0;text-transform:none;background:#0d1626;border:1px solid #334155;border-radius:99px;padding:2px 10px;color:#c7d3e3}
+.talepler table{min-width:640px}
 </style>
 </head>
 <body>
@@ -111,7 +120,6 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
       <div class="filtre">
         <div><label>Başlangıç</label><input type="date" id="fBas"></div>
         <div><label>Bitiş</label><input type="date" id="fBit"></div>
-        <div><label>Vardiya</label><select id="fVardiya"><option value="">Tümü</option><option value="sabah">Sabah</option><option value="aksam">Akşam</option></select></div>
         <div><label>Yön</label><select id="fYon"><option value="">Tümü</option><option value="karadeniz">KARADENİZ</option><option value="mselam">M.SELAM</option></select></div>
         <div><label>Durum</label><select id="fDurum"><option value="">Tümü</option><option value="aktif">Aktif</option><option value="iptal">İptal</option></select></div>
         <div><label>Ara (sicil / ad)</label><input id="fAra" placeholder="örn 1001 / Ahmet"></div>
@@ -132,16 +140,30 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
       <div class="hint" id="cDurum" style="margin-top:10px">—</div>
     </div>
 
-    <div class="card">
-      <h2>Talepler</h2>
-      <div class="tblw">
-        <table>
-          <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Vardiya</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
-          <tbody id="tablo"></tbody>
-        </table>
+    <div class="talepler">
+      <div class="card sabah">
+        <h2>🌅 Sabah Vardiyası <span class="say" id="sabahSay">0</span></h2>
+        <div class="tblw">
+          <table>
+            <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
+            <tbody id="tabloSabah"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="sabahAlt" style="margin-top:8px"></div>
       </div>
-      <div class="hint" id="tabloAlt" style="margin-top:8px"></div>
+
+      <div class="card aksam">
+        <h2>🌙 Akşam Vardiyası <span class="say" id="aksamSay">0</span></h2>
+        <div class="tblw">
+          <table>
+            <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
+            <tbody id="tabloAksam"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="aksamAlt" style="margin-top:8px"></div>
+      </div>
     </div>
+    <div class="hint" id="tabloAlt" style="margin:-2px 0 14px"></div>
 
     <div class="card">
       <h2>Personel Yönetimi</h2>
@@ -163,6 +185,7 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
 <script src="supabase-config.js"></script>
 <script type="module">
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const cfg = window.__SB__ || {};
 const sb = window.supabase?.createClient
   ? window.supabase.createClient(cfg.URL, cfg.ANON_KEY)
@@ -253,7 +276,6 @@ function filtreOku() {
   return {
     bas: $("fBas").value || gunEkle(bugun(), -6),
     bit: $("fBit").value || bugun(),
-    vardiya: $("fVardiya").value,
     yon: $("fYon").value,
     durum: $("fDurum").value,
     ara: $("fAra").value.trim().toLocaleLowerCase("tr")
@@ -267,7 +289,6 @@ async function yukle() {
     const { data, error } = await sb.rpc("servis_admin_talepler", {
       p_admin_sicil: A.sicil, p_admin_hash: A.hash,
       p_bas: f.bas, p_bit: f.bit,
-      p_vardiya: f.vardiya || null,
       p_yon: f.yon || null,
       p_durum: f.durum || null,
       p_ara: f.ara || null
@@ -278,38 +299,57 @@ async function yukle() {
     ciz();
     $("sonSync").textContent = "✅ " + new Date().toLocaleTimeString("tr-TR");
   } catch (e) {
-    $("tablo").innerHTML = `<tr><td colspan="10" class="bos">🔴 ${e.message}</td></tr>`;
+    const m = `<tr><td colspan="9" class="bos">🔴 ${e.message}</td></tr>`;
+    $("tabloSabah").innerHTML = m;
+    $("tabloAksam").innerHTML = m;
+    $("sabahSay").textContent = "0";
+    $("aksamSay").textContent = "0";
     $("sonSync").textContent = "🔴 hata";
   }
 }
 
+function satirHtml(x) {
+  return `<tr>
+    <td>${x.id}</td>
+    <td>${tarihKisa(x.gun)}</td>
+    <td>${String(x.saat).slice(0, 5)}</td>
+    <td><b>${x.sicil}</b></td>
+    <td>${esc(x.ad || "—")}</td>
+    <td><span class="rozet ${x.yon === "karadeniz" ? "kar" : "mse"}">${x.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM"}</span></td>
+    <td><span class="rozet ${x.durum}">${x.durum === "aktif" ? "Aktif" : "İptal"}</span></td>
+    <td>${x.iptal_gun ? tarihKisa(x.iptal_gun) : "—"}</td>
+    <td>${x.iptal_saat ? String(x.iptal_saat).slice(0, 5) : "—"}</td>
+  </tr>`;
+}
+
+function vardiyaCiz(tbodyId, altId, sayId, liste) {
+  const aktif = liste.filter((x) => x.durum === "aktif").length;
+  $(sayId).textContent = liste.length;
+  $(tbodyId).innerHTML = liste.length
+    ? liste.map(satirHtml).join("")
+    : `<tr><td colspan="9" class="bos">Bu vardiyada kayıt yok</td></tr>`;
+  $(altId).textContent = `${liste.length} kayıt • ${aktif} aktif • ${liste.length - aktif} iptal`;
+}
+
 function ciz() {
   const d = _liste;
+  const sabah = d.filter((x) => x.vardiya === "sabah");
+  const aksam = d.filter((x) => x.vardiya === "aksam");
   const aktif = d.filter((x) => x.durum === "aktif").length;
   const iptal = d.filter((x) => x.durum === "iptal").length;
   $("kpirow").innerHTML = [
     ["📋", "Toplam Talep", d.length, "mor"],
     ["✅", "Aktif", aktif, "yesil"],
     ["🚫", "İptal", iptal, "kirmizi"],
-    ["🌅", "Sabah", d.filter((x) => x.vardiya === "sabah").length, "sari"],
-    ["🌙", "Akşam", d.filter((x) => x.vardiya === "aksam").length, "mor"],
+    ["🌅", "Sabah", sabah.length, "sari"],
+    ["🌙", "Akşam", aksam.length, "mor"],
     ["🌊", "KARADENİZ", d.filter((x) => x.yon === "karadeniz").length, "mavi"],
     ["🏁", "M.SELAM", d.filter((x) => x.yon === "mselam").length, "turuncu"],
     ["👥", "Kişi", new Set(d.map((x) => x.sicil)).size, "mavi"]
   ].map(([i, l, v, c]) => `<div class="kpi ${c}"><span class="lb">${i} ${l}</span><span class="sy">${v}</span></div>`).join("");
 
-  $("tablo").innerHTML = d.length ? d.map((x) => `<tr>
-    <td>${x.id}</td>
-    <td>${tarihKisa(x.gun)}</td>
-    <td>${String(x.saat).slice(0, 5)}</td>
-    <td><b>${x.sicil}</b></td>
-    <td>${(x.ad || "—").replace(/</g, "&lt;")}</td>
-    <td><span class="rozet ${x.vardiya}">${x.vardiya === "sabah" ? "Sabah" : "Akşam"}</span></td>
-    <td><span class="rozet ${x.yon === "karadeniz" ? "kar" : "mse"}">${x.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM"}</span></td>
-    <td><span class="rozet ${x.durum}">${x.durum === "aktif" ? "Aktif" : "İptal"}</span></td>
-    <td>${x.iptal_gun ? tarihKisa(x.iptal_gun) : "—"}</td>
-    <td>${x.iptal_saat ? String(x.iptal_saat).slice(0, 5) : "—"}</td>
-  </tr>`).join("") : `<tr><td colspan="10" class="bos">Bu filtrede kayıt yok</td></tr>`;
+  vardiyaCiz("tabloSabah", "sabahAlt", "sabahSay", sabah);
+  vardiyaCiz("tabloAksam", "aksamAlt", "aksamSay", aksam);
 
   const f = filtreOku();
   $("tabloAlt").textContent = `${tarihKisa(f.bas)} → ${tarihKisa(f.bit)} • ${d.length} kayıt`;
@@ -324,7 +364,7 @@ async function personelYukle() {
     const l = data.liste || [];
     k.innerHTML = l.map((p) => `<tr>
       <td><b>${p.sicil}</b></td>
-      <td>${(p.ad || "").replace(/</g, "&lt;")}</td>
+      <td>${esc(p.ad || "")}</td>
       <td>${p.admin ? '<span class="rozet kar">Yönetici</span>' : '<span class="rozet mse">Personel</span>'}</td>
       <td>${p.sifre_degisti ? '<span class="rozet aktif">Belirlendi</span>' : '<span class="rozet iptal">İlk giriş</span>'}</td>
       <td>${p.kilitli ? '<span class="rozet iptal">🔒 Kilitli</span>' : '—'}</td>
@@ -415,7 +455,7 @@ $("cikisBtn").onclick = () => {
   $("loginModal").classList.add("acik");
   $("inSifre").value = ""; hataSil("loginHata");
 };
-["fBas", "fBit", "fVardiya", "fYon", "fDurum"].forEach((id) => $(id).onchange = yukle);
+["fBas", "fBit", "fYon", "fDurum"].forEach((id) => $(id).onchange = yukle);
 $("fAra").oninput = () => { clearTimeout(window._ar); window._ar = setTimeout(yukle, 250); };
 
 try {
