@@ -81,6 +81,20 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
 #kapaliModal{z-index:150}
 #kapaliModal .kutu{border-color:#7f1d1d}
 #kapaliModal .lg{background:rgba(239,68,68,.14)}
+#onayModal{z-index:160}
+#onayModal .kutu{border-color:#334155}
+#onayModal .lg{background:rgba(14,165,233,.14)}
+#onayModal.iptal .kutu{border-color:#7f1d1d}
+#onayModal.iptal .lg{background:rgba(239,68,68,.14)}
+.onayBtnler{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.onayBtnler button{border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit}
+.onayBtnler .evet{background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#fff}
+.onayBtnler .iptalEvet{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
+.onayBtnler .vazgec{background:#1e293b;color:#c7d3e3;border:1px solid #334155}
+.onayBtnler button:active{transform:scale(.99)}
+.tarihKart .yenile{margin-left:auto;flex:0 0 auto;background:rgba(255,255,255,.12);color:#e0f2fe;border:1px solid rgba(255,255,255,.28);border-radius:10px;padding:9px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit}
+.tarihKart .yenile:active{transform:scale(.98)}
+.tarihKart .yenile.donuyor{opacity:.6;cursor:default}
 </style>
 </head>
 <body>
@@ -123,6 +137,18 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
   </div>
 </div>
 
+<div id="onayModal" class="modal">
+  <div class="kutu">
+    <div class="lg" id="onayEmoji">❓</div>
+    <h2 id="onayBaslik">Onay</h2>
+    <p id="onayMesaj">—</p>
+    <div class="onayBtnler">
+      <button id="onayVazgec" class="vazgec">Vazgeç</button>
+      <button id="onayEvet" class="evet">Evet</button>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <header>
     <div class="lg">🚐</div>
@@ -133,6 +159,7 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
     <div class="tarihKart">
       <div class="em">📅</div>
       <div><b id="tarihTxt">—</b><small id="saatTxt">—</small></div>
+      <button id="yenileBtn" class="yenile" title="Taleplerimi yenile">↻ Yenile</button>
     </div>
 
     <div class="card">
@@ -210,6 +237,26 @@ async function hashla(sicil, sifre) {
 function hata(el, m) { const e = $(el); e.textContent = m; e.classList.add("goster"); }
 function hataSil(el) { $(el).classList.remove("goster"); }
 function mesaj(m, tip) { const e = $("mesaj"); e.textContent = m; e.className = tip || ""; }
+
+let _onayCoz = null;
+function onayla(o) {
+  return new Promise((coz) => {
+    $("onayBaslik").textContent = o.baslik || "Onay";
+    $("onayMesaj").textContent = o.mesaj || "";
+    $("onayEmoji").textContent = o.emoji || "❓";
+    $("onayEvet").textContent = o.evet || "Evet";
+    $("onayEvet").className = o.tehlike ? "iptalEvet" : "evet";
+    $("onayModal").classList.toggle("iptal", !!o.tehlike);
+    $("onayModal").classList.add("acik");
+    _onayCoz = coz;
+  });
+}
+function onayKapat(sonuc) {
+  $("onayModal").classList.remove("acik");
+  const c = _onayCoz;
+  _onayCoz = null;
+  if (c) c(sonuc);
+}
 
 function oturumKaydet() { try { localStorage.setItem(DEPO, JSON.stringify({ ...S, t: Date.now() })); } catch (e) {} }
 function oturumOku() {
@@ -346,6 +393,13 @@ $("kapaliTekrar").onclick = async () => {
 
 async function servisIste() {
   if (!seciliVardiya) return mesaj("Önce SABAH veya AKŞAM seç", "kotu");
+  const onay = await onayla({
+    baslik: "Talebi Onayla",
+    mesaj: `${VARD_AD[seciliVardiya]} • ${YON_AD[seciliYon]} servisi istensin mi?`,
+    evet: "Evet, istiyorum",
+    emoji: "✅"
+  });
+  if (!onay) return mesaj("Talep gönderilmedi", "bilgi");
   const btn = $("isteBtn"); btn.disabled = true;
   mesaj("Kaydediliyor…", "bilgi");
   try {
@@ -368,6 +422,14 @@ async function servisIste() {
 }
 
 async function servisIptal() {
+  const onay = await onayla({
+    baslik: "İptal Onayı",
+    mesaj: "Bugünkü servis talebini iptal etmek istiyor musun?",
+    evet: "Evet, iptal et",
+    emoji: "✖️",
+    tehlike: true
+  });
+  if (!onay) return mesaj("İptalden vazgeçildi", "bilgi");
   const btn = $("iptalBtn"); btn.disabled = true;
   mesaj("İptal ediliyor…", "bilgi");
   try {
@@ -431,6 +493,26 @@ $("sfBtn").onclick = sifreKaydet;
 $("sfTekrar").onkeydown = (e) => { if (e.key === "Enter") sifreKaydet(); };
 $("isteBtn").onclick = servisIste;
 $("iptalBtn").onclick = servisIptal;
+$("onayEvet").onclick = () => onayKapat(true);
+$("onayVazgec").onclick = () => onayKapat(false);
+$("onayModal").onclick = (e) => { if (e.target === $("onayModal")) onayKapat(false); };
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("onayModal").classList.contains("acik")) onayKapat(false);
+});
+$("yenileBtn").onclick = async () => {
+  const b = $("yenileBtn");
+  if (b.disabled) return;
+  b.disabled = true; b.classList.add("donuyor");
+  const eski = b.textContent; b.textContent = "⏳";
+  try {
+    await Promise.all([bugunYukle(), gecmisYukle()]);
+    mesaj("🔄 Güncellendi", "iyi");
+  } catch (e) {
+    mesaj("Yenilenemedi: " + (e.message || e), "kotu");
+  } finally {
+    b.textContent = eski; b.disabled = false; b.classList.remove("donuyor");
+  }
+};
 $("cikisBtn").onclick = () => {
   if (!confirm("Çıkış yapılsın mı?")) return;
   oturumSil(); S = { sicil: "", ad: "", admin: false, hash: "" };
