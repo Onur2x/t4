@@ -162,7 +162,7 @@ const sb = window.supabase?.createClient
   : (await import("https://esm.sh/@supabase/supabase-js@2")).createClient(cfg.URL, cfg.ANON_KEY);
 
 const DEPO = "t4_oturum";
-let S = { sicil: "", ad: "", admin: false };
+let S = { sicil: "", ad: "", admin: false, hash: "" };
 let seciliVardiya = "";
 let seciliYon = "karadeniz";
 
@@ -226,7 +226,7 @@ async function girisYap() {
       $("sifreModal").classList.add("acik");
       return;
     }
-    S = { sicil, ad: data.ad, admin: !!data.admin };
+    S = { sicil, ad: data.ad, admin: !!data.admin, hash: h };
     oturumKaydet();
     ac();
   } catch (e) {
@@ -249,7 +249,7 @@ async function sifreKaydet() {
     const { data, error } = await sb.rpc("servis_sifre_kaydet", { p_sicil: sifreBekle.sicil, p_hash: h });
     if (error) throw error;
     if (!data) return hata("sfHata", "Şifre kaydedilemedi");
-    S = { ...sifreBekle };
+    S = { ...sifreBekle, hash: h };
     oturumKaydet();
     $("sifreModal").classList.remove("acik");
     $("loginModal").classList.remove("acik");
@@ -303,14 +303,13 @@ async function servisIste() {
   const btn = $("isteBtn"); btn.disabled = true;
   mesaj("Kaydediliyor…", "bilgi");
   try {
-    const { error } = await sb.from("servis_talep").upsert({
-      sicil: S.sicil, ad: S.ad,
-      gun: yerelTarih(), saat: yerelSaat(),
-      vardiya: seciliVardiya, yon: seciliYon,
-      durum: "aktif", iptal_gun: null, iptal_saat: null,
-      guncellendi: new Date().toISOString()
-    }, { onConflict: "sicil,gun" });
+    const { data, error } = await sb.rpc("servis_talep_iste", {
+      p_sicil: S.sicil, p_hash: S.hash,
+      p_gun: yerelTarih(), p_saat: yerelSaat(),
+      p_vardiya: seciliVardiya, p_yon: seciliYon
+    });
     if (error) throw error;
+    if (!data || !data.ok) { mesaj(data?.mesaj || "Kaydedilemedi", "kotu"); return; }
     mesaj(`✅ ${VARD_AD[seciliVardiya]} • ${YON_AD[seciliYon]} servisi istendi`, "iyi");
     bugunYukle(); gecmisYukle();
   } catch (e) {
@@ -322,12 +321,12 @@ async function servisIptal() {
   const btn = $("iptalBtn"); btn.disabled = true;
   mesaj("İptal ediliyor…", "bilgi");
   try {
-    const { data, error } = await sb.from("servis_talep")
-      .update({ durum: "iptal", iptal_gun: yerelTarih(), iptal_saat: yerelSaat(), guncellendi: new Date().toISOString() })
-      .eq("sicil", S.sicil).eq("gun", yerelTarih()).eq("durum", "aktif")
-      .select("id");
+    const { data, error } = await sb.rpc("servis_talep_iptal", {
+      p_sicil: S.sicil, p_hash: S.hash,
+      p_gun: yerelTarih(), p_saat: yerelSaat()
+    });
     if (error) throw error;
-    if (!data || !data.length) { mesaj("Bugün için aktif talebin yok", "bilgi"); return; }
+    if (!data || !data.ok) { mesaj(data?.mesaj || "İptal edilemedi", "bilgi"); return; }
     mesaj("✖️ Bugünkü servis talebin iptal edildi", "iyi");
     bugunYukle(); gecmisYukle();
   } catch (e) {
@@ -380,7 +379,7 @@ $("isteBtn").onclick = servisIste;
 $("iptalBtn").onclick = servisIptal;
 $("cikisBtn").onclick = () => {
   if (!confirm("Çıkış yapılsın mı?")) return;
-  oturumSil(); S = { sicil: "", ad: "", admin: false };
+  oturumSil(); S = { sicil: "", ad: "", admin: false, hash: "" };
   $("app").classList.remove("acik");
   $("loginModal").classList.add("acik");
   $("inSifre").value = "";
@@ -390,7 +389,8 @@ $("cikisBtn").onclick = () => {
 setInterval(() => { if ($("app").classList.contains("acik")) tarihCiz(); }, 1000);
 
 const mevcut = oturumOku();
-if (mevcut) { S = { sicil: mevcut.sicil, ad: mevcut.ad, admin: !!mevcut.admin }; ac(); }
+if (mevcut && mevcut.hash) { S = { sicil: mevcut.sicil, ad: mevcut.ad, admin: !!mevcut.admin, hash: mevcut.hash }; ac(); }
+else oturumSil();
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
