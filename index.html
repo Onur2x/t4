@@ -334,12 +334,18 @@ async function servisIptal() {
   } finally { btn.disabled = false; }
 }
 
+async function taleplerim(gun) {
+  const { data, error } = await sb.rpc("servis_taleplerim", { p_sicil: S.sicil, p_hash: S.hash, p_gun: gun || null });
+  if (error) throw error;
+  if (!data || !data.ok) throw new Error(data?.mesaj || "Yetkisiz");
+  return data.liste || [];
+}
+
 async function bugunYukle() {
   const k = $("bugunKutu");
   try {
-    const { data, error } = await sb.from("servis_talep")
-      .select("*").eq("sicil", S.sicil).eq("gun", yerelTarih()).maybeSingle();
-    if (error) throw error;
+    const l = await taleplerim(yerelTarih());
+    const data = l[0];
     if (!data) { k.innerHTML = '<div class="bos">Henüz talebin yok</div>'; return; }
     const aktif = data.durum === "aktif";
     k.innerHTML = `<div class="bugun">
@@ -356,10 +362,8 @@ async function bugunYukle() {
 async function gecmisYukle() {
   const k = $("gecmisKutu");
   try {
-    const { data, error } = await sb.from("servis_talep")
-      .select("*").eq("sicil", S.sicil).order("gun", { ascending: false }).limit(15);
-    if (error) throw error;
-    const d = (data || []).filter((x) => x.gun !== yerelTarih());
+    const l = await taleplerim();
+    const d = l.filter((x) => x.gun !== yerelTarih()).slice(0, 15);
     if (!d.length) { k.innerHTML = '<div class="bos">Geçmiş talebin yok</div>'; return; }
     k.innerHTML = d.map((x) => `<div class="kv">
       <div class="sol"><b>${VARD_AD[x.vardiya] || x.vardiya} • ${YON_AD[x.yon] || x.yon}</b>

@@ -252,13 +252,17 @@ async function yukle() {
   const f = filtreOku();
   $("sonSync").textContent = "⏳";
   try {
-    let q = sb.from("servis_talep").select("*").gte("gun", f.bas).lte("gun", f.bit).order("gun", { ascending: false }).order("saat", { ascending: false }).limit(1000);
-    if (f.vardiya) q = q.eq("vardiya", f.vardiya);
-    if (f.yon) q = q.eq("yon", f.yon);
-    if (f.durum) q = q.eq("durum", f.durum);
-    const { data, error } = await q;
+    const { data, error } = await sb.rpc("servis_admin_talepler", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash,
+      p_bas: f.bas, p_bit: f.bit,
+      p_vardiya: f.vardiya || null,
+      p_yon: f.yon || null,
+      p_durum: f.durum || null,
+      p_ara: f.ara || null
+    });
     if (error) throw error;
-    _liste = (data || []).filter((x) => !f.ara || String(x.sicil).toLocaleLowerCase("tr").includes(f.ara) || String(x.ad || "").toLocaleLowerCase("tr").includes(f.ara));
+    if (!data || !data.ok) throw new Error(data?.mesaj || "Yetkisiz");
+    _liste = data.liste || [];
     ciz();
     $("sonSync").textContent = "✅ " + new Date().toLocaleTimeString("tr-TR");
   } catch (e) {
