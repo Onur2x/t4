@@ -16,7 +16,7 @@ header b{font-size:15px;display:block;line-height:1.15}
 header small{font-size:11.5px;color:#7d8ea8;display:block}
 header .sag{margin-left:auto;display:flex;gap:8px;align-items:center}
 header .sag button{background:#1e293b;color:#c7d3e3;border:1px solid #334155;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer}
-main{max-width:1240px;margin:0 auto;padding:18px 16px 60px}
+main{min-width:0}
 h1{font-size:19px;margin:0 0 14px}
 .card{background:linear-gradient(180deg,#16233f,#111c33);border:1px solid #1e293b;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.28);overflow-x:auto}
 .card h2{margin:0 0 12px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#8fa1b8;font-weight:800}
@@ -69,6 +69,26 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
 .talepler .card.aksam h2{color:#a5b4fc}
 .talepler h2{display:flex;align-items:center;gap:8px}
 .talepler h2 .say{margin-left:auto;font-size:12px;letter-spacing:0;text-transform:none;background:#0d1626;border:1px solid #334155;border-radius:99px;padding:2px 10px;color:#c7d3e3}
+.duzen{max-width:1240px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:18px;align-items:start}
+.yan{position:sticky;top:78px;display:flex;flex-direction:column;gap:6px;background:linear-gradient(180deg,#16233f,#111c33);border:1px solid #1e293b;border-radius:16px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.yan .bas{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7d96;font-weight:800;padding:6px 10px 4px}
+.menuBtn{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#b9c7da;border-radius:11px;padding:10px 11px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.menuBtn:hover{background:rgba(99,102,241,.12);color:#e8eef7}
+.menuBtn.secili{background:linear-gradient(135deg,rgba(99,102,241,.28),rgba(67,56,202,.2));border-color:#4f46e5;color:#fff}
+.menuBtn .em{font-size:15px;line-height:1}
+.menuBtn .ck{margin-left:auto;font-size:10.5px;font-weight:900;background:#4f46e5;color:#fff;border-radius:99px;padding:1px 7px}
+.menuBtn .ck:empty{display:none}
+main{min-width:0}
+main h1{margin:0 0 14px}
+.sayfa{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.sayfa .bl{font-size:11.5px;color:#8fa1b8;font-weight:700;font-variant-numeric:tabular-nums}
+.sayfa .kucuk:disabled{opacity:.4;cursor:default}
+@media (max-width:860px){
+  .duzen{grid-template-columns:minmax(0,1fr);padding-top:12px;gap:12px}
+  .yan{position:static;flex-direction:row;overflow-x:auto;padding:7px;gap:6px}
+  .yan .bas{display:none}
+  .menuBtn{width:auto;white-space:nowrap;padding:9px 12px}
+}
 </style>
 </head>
 <body>
@@ -111,74 +131,99 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
       <button id="cikisBtn">Çıkış</button>
     </div>
   </header>
-  <main>
-    <h1>Servis Talepleri Takibi</h1>
+  <div class="duzen">
+    <aside class="yan">
+      <div class="bas">Menü</div>
+      <button class="menuBtn secili" data-gorunum="talepler"><span class="em">📋</span>Talepler<span class="ck" id="ckTalep"></span></button>
+      <button class="menuBtn" data-gorunum="filtreler"><span class="em">🔎</span>Filtreler<span class="ck" id="ckFiltre"></span></button>
+      <button class="menuBtn" data-gorunum="personeller"><span class="em">👥</span>Personeller</button>
+      <button class="menuBtn" data-gorunum="ayarlar"><span class="em">⚙️</span>Ayarlar</button>
+    </aside>
 
-    <div class="card">
-      <h2>Filtreler</h2>
-      <div class="filtre">
-        <div><label>Başlangıç</label><input type="date" id="fBas"></div>
-        <div><label>Bitiş</label><input type="date" id="fBit"></div>
-        <div><label>Yön</label><select id="fYon"><option value="">Tümü</option><option value="karadeniz">KARADENİZ</option><option value="mselam">M.SELAM</option></select></div>
-        <div><label>Durum</label><select id="fDurum"><option value="">Tümü</option><option value="aktif">Aktif</option><option value="iptal">İptal</option></select></div>
-        <div><label>Ara (sicil / ad)</label><input id="fAra" placeholder="örn 1001 / Ahmet"></div>
-      </div>
-    </div>
+    <main>
+      <h1 id="baslik">Servis Talepleri Takibi</h1>
 
-    <div class="kpirow" id="kpirow"></div>
+      <div class="gorunum" id="vTalepler">
+        <div class="kpirow" id="kpirow"></div>
 
-    <div class="card">
-      <h2>🕘 Çalışma Saatleri</h2>
-      <p class="hint" style="margin:0 0 12px">Bu saatler dışında personel uygulaması kapanır ve talep açılamaz. Yönetim paneli her zaman açıktır.</p>
-      <div class="filtre">
-        <div><label>Açılış</label><input type="time" id="cBas" step="60"></div>
-        <div><label>Kapanış</label><input type="time" id="cBit" step="60"></div>
-        <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cKaydetBtn" class="btn">💾 Kaydet</button></div>
-        <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cYenileBtn" class="btn ghost">↻</button></div>
-      </div>
-      <div class="hint" id="cDurum" style="margin-top:10px">—</div>
-    </div>
+        <div class="talepler">
+          <div class="card sabah">
+            <h2>🌅 Sabah Vardiyası <span class="say" id="sabahSay">0</span></h2>
+            <div class="tblw">
+              <table>
+                <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
+                <tbody id="tabloSabah"></tbody>
+              </table>
+            </div>
+            <div class="hint" id="sabahAlt" style="margin-top:8px"></div>
+            <div class="sayfa" id="sabahSayfa"></div>
+          </div>
 
-    <div class="talepler">
-      <div class="card sabah">
-        <h2>🌅 Sabah Vardiyası <span class="say" id="sabahSay">0</span></h2>
-        <div class="tblw">
-          <table>
-            <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
-            <tbody id="tabloSabah"></tbody>
-          </table>
+          <div class="card aksam">
+            <h2>🌙 Akşam Vardiyası <span class="say" id="aksamSay">0</span></h2>
+            <div class="tblw">
+              <table>
+                <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
+                <tbody id="tabloAksam"></tbody>
+              </table>
+            </div>
+            <div class="hint" id="aksamAlt" style="margin-top:8px"></div>
+            <div class="sayfa" id="aksamSayfa"></div>
+          </div>
         </div>
-        <div class="hint" id="sabahAlt" style="margin-top:8px"></div>
+        <div class="hint" id="tabloAlt" style="margin:-2px 0 14px"></div>
       </div>
 
-      <div class="card aksam">
-        <h2>🌙 Akşam Vardiyası <span class="say" id="aksamSay">0</span></h2>
-        <div class="tblw">
-          <table>
-            <thead><tr><th>ID</th><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Yön</th><th>Durum</th><th>İptal Günü</th><th>İptal Saati</th></tr></thead>
-            <tbody id="tabloAksam"></tbody>
-          </table>
+      <div class="gorunum" id="vFiltreler" hidden>
+        <div class="card">
+          <h2>Filtreler</h2>
+          <div class="filtre">
+            <div><label>Başlangıç</label><input type="date" id="fBas"></div>
+            <div><label>Bitiş</label><input type="date" id="fBit"></div>
+            <div><label>Yön</label><select id="fYon"><option value="">Tümü</option><option value="karadeniz">KARADENİZ</option><option value="mselam">M.SELAM</option></select></div>
+            <div><label>Durum</label><select id="fDurum"><option value="">Tümü</option><option value="aktif">Aktif</option><option value="iptal">İptal</option></select></div>
+            <div><label>Ara (sicil / ad)</label><input id="fAra" placeholder="örn 1001 / Ahmet"></div>
+          </div>
+          <div class="sayfa" style="justify-content:flex-start;margin-top:12px">
+            <button id="fUygulaBtn" class="btn">Uygula</button>
+            <button id="fTemizleBtn" class="btn ghost">Temizle</button>
+          </div>
+          <p class="hint" style="margin:10px 0 0">Filtre uygulanınca Talepler ekranına dönülür. Aktif filtre varsa menüde 🔎 yanında sayısı görünür.</p>
         </div>
-        <div class="hint" id="aksamAlt" style="margin-top:8px"></div>
       </div>
-    </div>
-    <div class="hint" id="tabloAlt" style="margin:-2px 0 14px"></div>
 
-    <div class="card">
-      <h2>Personel Yönetimi</h2>
-      <div class="ekle">
-        <div><label>Sicil</label><input id="pSicil" inputmode="numeric" placeholder="örn 1001"></div>
-        <div><label>Ad Soyad</label><input id="pAd" placeholder="Ad SOYAD"></div>
-        <div style="flex:0 0 auto"><label>&nbsp;</label><button id="pEkleBtn" class="btn">➕ Ekle / Güncelle</button></div>
+      <div class="gorunum" id="vPersoneller" hidden>
+        <div class="card">
+          <h2>Personel Yönetimi</h2>
+          <div class="ekle">
+            <div><label>Sicil</label><input id="pSicil" inputmode="numeric" placeholder="örn 1001"></div>
+            <div><label>Ad Soyad</label><input id="pAd" placeholder="Ad SOYAD"></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="pEkleBtn" class="btn">➕ Ekle / Güncelle</button></div>
+          </div>
+          <div class="tblw">
+            <table>
+              <thead><tr><th>Sicil</th><th>Ad</th><th>Rol</th><th>Şifre</th><th>Kilit</th><th>Durum</th><th>İşlem</th></tr></thead>
+              <tbody id="personelTablo"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <div class="tblw">
-        <table>
-          <thead><tr><th>Sicil</th><th>Ad</th><th>Rol</th><th>Şifre</th><th>Kilit</th><th>Durum</th><th>İşlem</th></tr></thead>
-          <tbody id="personelTablo"></tbody>
-        </table>
+
+      <div class="gorunum" id="vAyarlar" hidden>
+        <div class="card">
+          <h2>🕘 Çalışma Saatleri</h2>
+          <p class="hint" style="margin:0 0 12px">Bu saatler dışında personel uygulaması kapanır ve talep açılamaz. Yönetim paneli her zaman açıktır.</p>
+          <div class="filtre">
+            <div><label>Açılış</label><input type="time" id="cBas" step="60"></div>
+            <div><label>Kapanış</label><input type="time" id="cBit" step="60"></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cKaydetBtn" class="btn">💾 Kaydet</button></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cYenileBtn" class="btn ghost">↻</button></div>
+          </div>
+          <div class="hint" id="cDurum" style="margin-top:10px">—</div>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <script src="supabase-config.js"></script>
@@ -268,7 +313,29 @@ function ac() {
   $("panel").style.display = "block";
   $("kimTxt").textContent = `${A.ad} (${A.sicil}) • Yönetici`;
   if (!$("fBas").value) { $("fBas").value = gunEkle(bugun(), -6); $("fBit").value = bugun(); }
+  gorunumAc("talepler");
   yukle(); personelYukle(); calismaYukle();
+}
+
+const GORUNUMLER = {
+  talepler: ["vTalepler", "Servis Talepleri Takibi"],
+  filtreler: ["vFiltreler", "Filtreler"],
+  personeller: ["vPersoneller", "Personel Yönetimi"],
+  ayarlar: ["vAyarlar", "Ayarlar"]
+};
+let _gorunum = "talepler";
+
+function gorunumAc(ad) {
+  if (!GORUNUMLER[ad]) return;
+  _gorunum = ad;
+  Object.entries(GORUNUMLER).forEach(([k, [id, baslik]]) => {
+    const el = $(id);
+    if (!el) return;
+    if (k === ad) el.removeAttribute("hidden"); else el.setAttribute("hidden", "");
+    if (k === ad) $("baslik").textContent = baslik;
+  });
+  document.querySelectorAll(".menuBtn").forEach((b) => b.classList.toggle("secili", b.dataset.gorunum === ad));
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function filtreOku() {
@@ -280,6 +347,8 @@ function filtreOku() {
     ara: $("fAra").value.trim().toLocaleLowerCase("tr")
   };
 }
+
+let _filtreImza = "";
 
 async function yukle() {
   const f = filtreOku();
@@ -295,6 +364,8 @@ async function yukle() {
     if (error) throw error;
     if (!data || !data.ok) throw new Error(data?.mesaj || "Yetkisiz");
     _liste = data.liste || [];
+    const imza = JSON.stringify(f);
+    if (imza !== _filtreImza) { _filtreImza = imza; _sayfa = { sabah: 1, aksam: 1 }; }
     ciz();
     $("sonSync").textContent = "✅ " + new Date().toLocaleTimeString("tr-TR");
   } catch (e) {
@@ -303,6 +374,8 @@ async function yukle() {
     $("tabloAksam").innerHTML = m;
     $("sabahSay").textContent = "0";
     $("aksamSay").textContent = "0";
+    $("sabahSayfa").innerHTML = "";
+    $("aksamSayfa").innerHTML = "";
     $("sonSync").textContent = "🔴 hata";
   }
 }
@@ -321,14 +394,38 @@ function satirHtml(x) {
   </tr>`;
 }
 
-function vardiyaCiz(tbodyId, altId, sayId, liste) {
+const SAYFA_BOY = 25;
+let _sayfa = { sabah: 1, aksam: 1 };
+
+function vardiyaCiz(tbodyId, altId, sayId, sayfaId, liste, anahtar) {
+  const toplam = liste.length;
+  const sonSayfa = Math.max(1, Math.ceil(toplam / SAYFA_BOY));
+  if (_sayfa[anahtar] > sonSayfa) _sayfa[anahtar] = sonSayfa;
+  if (_sayfa[anahtar] < 1) _sayfa[anahtar] = 1;
+  const s = _sayfa[anahtar];
+  const dilim = liste.slice((s - 1) * SAYFA_BOY, s * SAYFA_BOY);
+
   const aktif = liste.filter((x) => x.durum === "aktif").length;
-  $(sayId).textContent = liste.length;
-  $(tbodyId).innerHTML = liste.length
-    ? liste.map(satirHtml).join("")
+  $(sayId).textContent = toplam;
+  $(tbodyId).innerHTML = dilim.length
+    ? dilim.map(satirHtml).join("")
     : `<tr><td colspan="9" class="bos">Bu vardiyada kayıt yok</td></tr>`;
-  $(altId).textContent = `${liste.length} kayıt • ${aktif} aktif • ${liste.length - aktif} iptal`;
+
+  const bas = toplam ? (s - 1) * SAYFA_BOY + 1 : 0;
+  const bit = Math.min(s * SAYFA_BOY, toplam);
+  $(altId).textContent = `${toplam} kayıt • ${aktif} aktif • ${toplam - aktif} iptal` +
+    (toplam > SAYFA_BOY ? ` • ${bas}–${bit} arası gösteriliyor` : "");
+
+  $(sayfaId).innerHTML = sonSayfa <= 1 ? "" : `
+    <button class="kucuk" data-sf="${anahtar}" data-y="${s - 1}" ${s <= 1 ? "disabled" : ""}>‹ Önceki</button>
+    <span class="bl">Sayfa ${s} / ${sonSayfa}</span>
+    <button class="kucuk" data-sf="${anahtar}" data-y="${s + 1}" ${s >= sonSayfa ? "disabled" : ""}>Sonraki ›</button>`;
 }
+
+window.sayfaGit = (anahtar, y) => {
+  _sayfa[anahtar] = y;
+  ciz();
+};
 
 function ciz() {
   const d = _liste;
@@ -347,11 +444,23 @@ function ciz() {
     ["👥", "Kişi", new Set(d.map((x) => x.sicil)).size, "mavi"]
   ].map(([i, l, v, c]) => `<div class="kpi ${c}"><span class="lb">${i} ${l}</span><span class="sy">${v}</span></div>`).join("");
 
-  vardiyaCiz("tabloSabah", "sabahAlt", "sabahSay", sabah);
-  vardiyaCiz("tabloAksam", "aksamAlt", "aksamSay", aksam);
+  vardiyaCiz("tabloSabah", "sabahAlt", "sabahSay", "sabahSayfa", sabah, "sabah");
+  vardiyaCiz("tabloAksam", "aksamAlt", "aksamSay", "aksamSayfa", aksam, "aksam");
 
   const f = filtreOku();
   $("tabloAlt").textContent = `${tarihKisa(f.bas)} → ${tarihKisa(f.bit)} • ${d.length} kayıt`;
+  rozetYaz(d.length);
+}
+
+function rozetYaz(kayitSayisi) {
+  const f = filtreOku();
+  let n = 0;
+  if (f.yon) n++;
+  if (f.durum) n++;
+  if (f.ara) n++;
+  if (f.bas !== gunEkle(bugun(), -6) || f.bit !== bugun()) n++;
+  $("ckTalep").textContent = kayitSayisi > 0 ? String(kayitSayisi) : "";
+  $("ckFiltre").textContent = n > 0 ? String(n) : "";
 }
 
 async function personelYukle() {
@@ -454,8 +563,28 @@ $("cikisBtn").onclick = () => {
   $("loginModal").classList.add("acik");
   $("inSifre").value = ""; hataSil("loginHata");
 };
+
+document.querySelectorAll(".menuBtn").forEach((b) => {
+  b.onclick = () => gorunumAc(b.dataset.gorunum);
+});
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-sf]");
+  if (!b || b.disabled) return;
+  window.sayfaGit(b.dataset.sf, Number(b.dataset.y));
+});
+
 ["fBas", "fBit", "fYon", "fDurum"].forEach((id) => $(id).onchange = yukle);
-$("fAra").oninput = () => { clearTimeout(window._ar); window._ar = setTimeout(yukle, 250); };
+$("fAra").oninput = () => { clearTimeout(window._ar); window._ar = setTimeout(yukle, 300); };
+$("fUygulaBtn").onclick = () => { yukle(); gorunumAc("talepler"); };
+$("fTemizleBtn").onclick = () => {
+  $("fBas").value = gunEkle(bugun(), -6);
+  $("fBit").value = bugun();
+  $("fYon").value = "";
+  $("fDurum").value = "";
+  $("fAra").value = "";
+  yukle();
+};
 
 try {
   const o = JSON.parse(sessionStorage.getItem(DEPO) || "null");
