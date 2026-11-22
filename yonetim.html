@@ -121,6 +121,18 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
     <div class="kpirow" id="kpirow"></div>
 
     <div class="card">
+      <h2>🕘 Çalışma Saatleri</h2>
+      <p class="hint" style="margin:0 0 12px">Bu saatler dışında personel uygulaması kapanır ve talep açılamaz. Yönetim paneli her zaman açıktır.</p>
+      <div class="filtre">
+        <div><label>Açılış</label><input type="time" id="cBas" step="60"></div>
+        <div><label>Kapanış</label><input type="time" id="cBit" step="60"></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cKaydetBtn" class="btn">💾 Kaydet</button></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button id="cYenileBtn" class="btn ghost">↻</button></div>
+      </div>
+      <div class="hint" id="cDurum" style="margin-top:10px">—</div>
+    </div>
+
+    <div class="card">
       <h2>Talepler</h2>
       <div class="tblw">
         <table>
@@ -234,7 +246,7 @@ function ac() {
   $("panel").style.display = "block";
   $("kimTxt").textContent = `${A.ad} (${A.sicil}) • Yönetici`;
   if (!$("fBas").value) { $("fBas").value = gunEkle(bugun(), -6); $("fBit").value = bugun(); }
-  yukle(); personelYukle();
+  yukle(); personelYukle(); calismaYukle();
 }
 
 function filtreOku() {
@@ -349,8 +361,49 @@ $("pEkleBtn").onclick = async () => {
   personelYukle();
 };
 
-$("girisBtn").onclick = girisYap;
-$("inSifre").onkeydown = (e) => { if (e.key === "Enter") girisYap(); };
+async function calismaYukle() {
+  try {
+    const { data, error } = await sb.rpc("servis_calisma_durumu");
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error("Okunamadı");
+    $("cBas").value = data.bas;
+    $("cBit").value = data.bit;
+    cDurumYaz(data.acik, data.bas, data.bit, data.simdi);
+    return data;
+  } catch (e) {
+    $("cDurum").innerHTML = `🔴 Çalışma saati ayarı okunamadı: ${e.message}<div class="hint" style="margin-top:4px">supabase-calisma.sql dosyasını çalıştırdın mı?</div>`;
+    return null;
+  }
+}
+
+function cDurumYaz(acik, bas, bit, simdi) {
+  const durum = acik
+    ? '<span class="rozet aktif">🟢 AÇIK</span>'
+    : '<span class="rozet iptal">🔴 KAPALI</span>';
+  $("cDurum").innerHTML = `${durum} Çalışma saatleri: <b>${bas} – ${bit}</b> • Şu an: <b>${simdi}</b>`;
+}
+
+$("cKaydetBtn").onclick = async () => {
+  const bas = $("cBas").value, bit = $("cBit").value;
+  if (!bas || !bit) return alert("Açılış ve kapanış saatini gir");
+  if (bas === bit) return alert("Açılış ve kapanış aynı olamaz");
+  const btn = $("cKaydetBtn"); btn.textContent = "…"; btn.disabled = true;
+  try {
+    const { data, error } = await sb.rpc("servis_ayar_guncelle", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash, p_bas: bas, p_bit: bit
+    });
+    if (error) throw error;
+    if (!data || !data.ok) { alert("🔴 " + (data?.mesaj || "Kaydedilemedi")); return; }
+    cDurumYaz(data.acik, data.bas, data.bit, data.simdi);
+    alert("✅ Çalışma saatleri " + data.bas + " – " + data.bit + " olarak kaydedildi");
+  } catch (e) {
+    alert("🔴 " + (e.message || e));
+  } finally { btn.textContent = "💾 Kaydet"; btn.disabled = false; }
+};
+
+$("cYenileBtn").onclick = calismaYukle;
+
+$("girisBtn").onclick = girisYap;$("inSifre").onkeydown = (e) => { if (e.key === "Enter") girisYap(); };
 $("sfBtn").onclick = sifreKaydet;
 $("sfTekrar").onkeydown = (e) => { if (e.key === "Enter") sifreKaydet(); };
 $("yenileBtn").onclick = () => { yukle(); personelYukle(); };
@@ -371,6 +424,7 @@ try {
 } catch (e) {}
 
 setInterval(() => { if ($("panel").style.display === "block") yukle(); }, 60000);
+setInterval(() => { if ($("panel").style.display === "block") calismaYukle(); }, 60000);
 </script>
 </body>
 </html>

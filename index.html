@@ -76,6 +76,11 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
 .kutu .btn:active{transform:scale(.99)}
 .hata{display:none;margin-top:12px;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;text-align:center;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.5);color:#fca5a5}
 .hata.goster{display:block}
+.kapaliSaat{display:flex;align-items:center;justify-content:center;gap:8px;background:#0d1626;border:1px solid #334155;border-radius:12px;padding:14px;margin:6px 0 2px;font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.5px;color:#7dd3fc}
+.kapaliSaat span{color:#5f708a;font-weight:700}
+#kapaliModal{z-index:150}
+#kapaliModal .kutu{border-color:#7f1d1d}
+#kapaliModal .lg{background:rgba(239,68,68,.14)}
 </style>
 </head>
 <body>
@@ -105,6 +110,16 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
     <input id="sfTekrar" type="password" autocomplete="new-password" placeholder="Tekrar yaz">
     <div id="sfHata" class="hata"></div>
     <button id="sfBtn" class="btn">Şifreyi Kaydet</button>
+  </div>
+</div>
+
+<div id="kapaliModal" class="modal">
+  <div class="kutu">
+    <div class="lg">🕘</div>
+    <h2>Uygulama Kapalı</h2>
+    <p id="kapaliMesaj">—</p>
+    <div id="kapaliSaat" class="kapaliSaat">—</div>
+    <button id="kapaliTekrar" class="btn">↻ Tekrar Dene</button>
   </div>
 </div>
 
@@ -298,6 +313,37 @@ $("yonSeg").onclick = (e) => {
 const VARD_AD = { sabah: "Sabah", aksam: "Akşam" };
 const YON_AD = { karadeniz: "KARADENİZ", mselam: "M.SELAM" };
 
+let calismaAcik = true;
+let calismaBilgi = { bas: "09:00", bit: "20:50" };
+
+async function calismaKontrol(sessiz) {
+  try {
+    const { data, error } = await sb.rpc("servis_calisma_durumu");
+    if (error) throw error;
+    if (!data || !data.ok) return true;
+    calismaBilgi = { bas: data.bas, bit: data.bit };
+    calismaAcik = !!data.acik;
+    if (calismaAcik) {
+      $("kapaliModal").classList.remove("acik");
+    } else {
+      $("kapaliMesaj").textContent = `Uygulama ${data.bas} – ${data.bit} saatleri arasında çalışmaktadır.`;
+      $("kapaliSaat").innerHTML = `<span>🕐</span> ${data.simdi} <span>→</span> ${data.bas} – ${data.bit}`;
+      $("kapaliModal").classList.add("acik");
+    }
+    return calismaAcik;
+  } catch (e) {
+    if (!sessiz) console.warn("Çalışma saati kontrolü yapılamadı:", e.message);
+    return true;
+  }
+}
+
+$("kapaliTekrar").onclick = async () => {
+  const b = $("kapaliTekrar");
+  b.textContent = "⏳ Kontrol ediliyor…"; b.disabled = true;
+  await calismaKontrol(false);
+  b.textContent = "↻ Tekrar Dene"; b.disabled = false;
+};
+
 async function servisIste() {
   if (!seciliVardiya) return mesaj("Önce SABAH veya AKŞAM seç", "kotu");
   const btn = $("isteBtn"); btn.disabled = true;
@@ -309,7 +355,11 @@ async function servisIste() {
       p_vardiya: seciliVardiya, p_yon: seciliYon
     });
     if (error) throw error;
-    if (!data || !data.ok) { mesaj(data?.mesaj || "Kaydedilemedi", "kotu"); return; }
+    if (!data || !data.ok) {
+      if (data && data.kapali) { await calismaKontrol(true); }
+      mesaj(data?.mesaj || "Kaydedilemedi", "kotu");
+      return;
+    }
     mesaj(`✅ ${VARD_AD[seciliVardiya]} • ${YON_AD[seciliYon]} servisi istendi`, "iyi");
     bugunYukle(); gecmisYukle();
   } catch (e) {
@@ -395,6 +445,11 @@ setInterval(() => { if ($("app").classList.contains("acik")) tarihCiz(); }, 1000
 const mevcut = oturumOku();
 if (mevcut && mevcut.hash) { S = { sicil: mevcut.sicil, ad: mevcut.ad, admin: !!mevcut.admin, hash: mevcut.hash }; ac(); }
 else oturumSil();
+
+calismaKontrol(true);
+setInterval(() => calismaKontrol(true), 60000);
+window.addEventListener("focus", () => calismaKontrol(true));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) calismaKontrol(true); });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
