@@ -252,6 +252,7 @@ main h1{margin:0 0 14px}
             <div><label>Kaç dk önce</label><input type="number" id="nDk" min="0" max="240" step="5"></div>
             <div style="flex:0 0 auto"><label>&nbsp;</label><button id="nKaydetBtn" class="btn">💾 Kaydet</button></div>
             <div style="flex:0 0 auto"><label>&nbsp;</label><button id="nYenileBtn" class="btn ghost">↻</button></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="nTestBtn" class="btn ghost">🔔 Test Bildirimi</button></div>
           </div>
           <div class="hint" id="nDurum" style="margin-top:10px">—</div>
         </div>
@@ -739,6 +740,40 @@ $("nKaydetBtn").onclick = async () => {
 };
 
 $("nYenileBtn").onclick = bildirimYukle;
+
+$("nTestBtn").onclick = async () => {
+  const btn = $("nTestBtn");
+  if (btn.disabled) return;
+  btn.textContent = "⏳ Gönderiliyor…"; btn.disabled = true;
+  try {
+    const r = await fetch((cfg.URL || "").replace(/\/$/, "") + "/functions/v1/push-tara", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: cfg.ANON_KEY || "",
+        Authorization: "Bearer " + (cfg.ANON_KEY || "")
+      },
+      body: JSON.stringify({ test: "admin" })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.ok === false) {
+      $("nDurum").innerHTML = `🔴 Test gönderilemedi (HTTP ${r.status}): ${esc(d.hata || "bilinmeyen hata")}`;
+      return;
+    }
+    if (!d.abone) {
+      $("nDurum").innerHTML = "🟡 Kayıtlı yönetici telefonu yok. Önce telefondan <b>🔔 Bildirimleri Aç</b> yapılmalı.";
+      return;
+    }
+    const hata = (d.hatalar || []).length ? `<div class="hint" style="margin-top:4px">${esc((d.hatalar || []).join(" | "))}</div>` : "";
+    $("nDurum").innerHTML =
+      `${d.basarili ? "🟢" : "🔴"} Test bildirimi: <b>${d.basarili}</b> gönderildi • <b>${d.hatali}</b> hata • abone <b>${d.abone}</b>${hata}` +
+      `<div class="hint" style="margin-top:4px">Telefonda birkaç saniye içinde bildirim görünmeli. Görünmüyorsa telefonun bildirim iznini ve Chrome olup olmadığını kontrol et.</div>`;
+  } catch (e) {
+    $("nDurum").innerHTML = `🔴 Test isteği başarısız: ${esc(e.message || e)}`;
+  } finally {
+    btn.textContent = "🔔 Test Bildirimi"; btn.disabled = false;
+  }
+};
 
 function silFiltre() {
   const bgn = bugun();

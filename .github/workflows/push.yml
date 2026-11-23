@@ -1,14 +1,16 @@
-name: Bildirim Tara
+name: Bildirim Tara (elle test)
 
-# Her 5 dakikada bir Supabase Edge Function "push-tara" cagrilir.
+# ZAMANLAMA ARTIK GITHUB'DA DEGIL.
+# GitHub'in schedule (cron) ozelligi bu depoda hic tetiklenmedi (3.5 saatte 0 calisma),
+# bu yuzden dakikalik tetikleme Supabase tarafina tasindi: supabase-duzeltme8.sql
+# icindeki pg_cron job'u (push-tara-dakika) her dakika Edge Function'i cagirir.
+# Bu dosya yalnizca elle test icin duruyor: Actions > Bildirim Tara > Run workflow.
+#
 # Gerekli secret: SUPABASE_PUSH_URL  (or. https://<proje>.supabase.co/functions/v1/push-tara)
-# Gerekli secret: SUPABASE_PUSH_KEY (Edge Function'a erismek icin anon key yeterli, fonksiyon kendi
-#                 service_role anahtariyla veritabanina baglanir)
+# Gerekli secret: SUPABASE_PUSH_KEY (anon/publishable key yeterli)
 # Bu iki secret yoksa is sessizce atlanir, hata vermez.
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -289,8 +289,48 @@ async function tara() {
   return { ok: true, gun, simdi, adet: bildirimler.length, abone: aboneler.length, basarili, hatali, silinen };
 }
 
-Deno.serve(async () => {
+// ---------- test bildirimi ----------
+async function testGonder(kim: string) {
+  const aboneler = await sbGet("servis_push_abone?select=sicil,admin,endpoint,p256dh,auth");
+  const hedefler = kim === "hepsi" ? aboneler : aboneler.filter((a: any) => a.admin === true);
+  const { simdi } = istanbul();
+  const payload = JSON.stringify({
+    baslik: "🔔 Test bildirimi",
+    mesaj: `Bildirimler çalışıyor. Saat ${simdi}.`,
+    tag: "t4-test",
+    url: "./index.html"
+  });
+  let basarili = 0, hatali = 0, silinen = 0;
+  const hatalar: string[] = [];
+  for (const a of hedefler) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } },
+        payload,
+        { TTL: 600 }
+      );
+      basarili++;
+    } catch (e: any) {
+      hatali++;
+      const kod = e?.statusCode;
+      hatalar.push(`${a.sicil}: ${kod || ""} ${String(e?.body || e?.message || e).slice(0, 120)}`);
+      if (kod === 404 || kod === 410) {
+        await sbDelete(`servis_push_abone?endpoint=eq.${encodeURIComponent(a.endpoint)}`);
+        silinen++;
+      }
+    }
+  }
+  return { ok: true, test: true, abone: hedefler.length, basarili, hatali, silinen, hatalar };
+}
+
+Deno.serve(async (req) => {
   try {
+    const govde = await req.json().catch(() => ({}));
+    if (govde && govde.test) {
+      const sonuc = await testGonder(String(govde.test));
+      console.log(JSON.stringify(sonuc));
+      return json(sonuc);
+    }
     const sonuc = await tara();
     console.log(JSON.stringify(sonuc));
     return json(sonuc);
