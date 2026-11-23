@@ -107,6 +107,10 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
 .sayfa button{background:#1e293b;color:#c7d3e3;border:1px solid #334155;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit}
 .sayfa button:disabled{opacity:.35;cursor:not-allowed}
 .sayfa .bl{font-size:11.5px;color:#8fa1b8;font-weight:800}
+#netModal{z-index:200}
+#netModal .kutu{border-color:#7f1d1d;max-width:390px}
+#netModal .lg{background:rgba(239,68,68,.14)}
+#netModal p{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -159,6 +163,16 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
       <button id="onayVazgec" class="vazgec">Vazgeç</button>
       <button id="onayEvet" class="evet">Evet</button>
     </div>
+  </div>
+</div>
+
+<div id="netModal" class="modal">
+  <div class="kutu">
+    <div class="lg">📡</div>
+    <h2>İnternet Bağlantısı Yok</h2>
+    <p>Uygulama internet olmadan çalışmaz. Wi‑Fi veya mobil veri bağlantını kontrol et. Bağlantı gelince bu pencere kendiliğinden kapanır.</p>
+    <div id="netDurum" class="kapaliSaat"><span>📵</span> Bağlantı bekleniyor…</div>
+    <button id="netTekrar" class="btn">↻ Tekrar Dene</button>
   </div>
 </div>
 
@@ -297,6 +311,7 @@ async function girisYap() {
   const sicil = $("inSicil").value.trim();
   const sifre = $("inSifre").value.trim();
   hataSil("loginHata");
+  if (!netGerek()) return hata("loginHata", "İnternet bağlantısı yok");
   if (!sicil || !sifre) return hata("loginHata", "Sicil ve şifre gerekli");
   const btn = $("girisBtn"); btn.textContent = "Giriş yapılıyor…"; btn.disabled = true;
   try {
@@ -326,6 +341,7 @@ let sifreBekle = null;
 async function sifreKaydet() {
   const y = $("sfYeni").value.trim(), t = $("sfTekrar").value.trim();
   hataSil("sfHata");
+  if (!netGerek()) return hata("sfHata", "İnternet bağlantısı yok");
   if (y.length < 4) return hata("sfHata", "Şifre en az 4 karakter olmalı");
   if (sifreBekle && y === sifreBekle.sicil) return hata("sfHata", "Şifre sicil numaran olamaz");
   if (y !== t) return hata("sfHata", "Şifreler eşleşmiyor");
@@ -352,6 +368,70 @@ async function sifreKaydet() {
   } finally {
     btn.textContent = "Şifreyi Kaydet"; btn.disabled = false;
   }
+}
+
+let netVar = true;
+let netTimer = null;
+
+async function internetVar() {
+  if (navigator.onLine === false) return false;
+  try {
+    const c = new AbortController();
+    const tm = setTimeout(() => c.abort(), 7000);
+    const r = await fetch((cfg.URL || "").replace(/\/$/, "") + "/rest/v1/rpc/servis_bugun", {
+      method: "POST",
+      cache: "no-store",
+      signal: c.signal,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: cfg.ANON_KEY || "",
+        Authorization: "Bearer " + (cfg.ANON_KEY || "")
+      },
+      body: "{}"
+    });
+    clearTimeout(tm);
+    JSON.parse(await r.text());
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function netPencere(yok) {
+  const m = $("netModal");
+  if (yok) {
+    $("netDurum").innerHTML = '<span>📵</span> Bağlantı bekleniyor…';
+    m.classList.add("acik");
+    if (!netTimer) netTimer = setInterval(() => netKontrol(true), 7000);
+  } else {
+    m.classList.remove("acik");
+    if (netTimer) { clearInterval(netTimer); netTimer = null; }
+  }
+}
+
+async function netKontrol(sessiz) {
+  const varMi = await internetVar();
+  const geldi = varMi && !netVar;
+  netVar = varMi;
+  netPencere(!varMi);
+  if (!varMi) return false;
+  $("netDurum").innerHTML = '<span>✅</span> Bağlantı var';
+  if (geldi) {
+    if (!sessiz) mesaj("🔄 Bağlantı geri geldi", "iyi");
+    if ($("app").classList.contains("acik")) {
+      sunucuTarihOku();
+      calismaKontrol(true);
+      bugunYukle();
+      if (_gecmisYuklendi) gecmisYukle();
+    }
+  }
+  return true;
+}
+
+function netGerek() {
+  if (netVar) return true;
+  netPencere(true);
+  return false;
 }
 
 function ac() {
@@ -409,6 +489,14 @@ const YON_AD = { karadeniz: "KARADENİZ", mselam: "M.SELAM" };
 let calismaAcik = true;
 let calismaBilgi = { bas: "09:00", bit: "20:50" };
 
+$("netTekrar").onclick = async () => {
+  const b = $("netTekrar");
+  b.textContent = "⏳ Kontrol ediliyor…"; b.disabled = true;
+  const varMi = await netKontrol(false);
+  if (varMi) mesaj("🔄 Bağlantı kuruldu", "iyi");
+  b.textContent = "↻ Tekrar Dene"; b.disabled = false;
+};
+
 async function calismaKontrol(sessiz) {
   try {
     const { data, error } = await sb.rpc("servis_calisma_durumu");
@@ -439,6 +527,7 @@ $("kapaliTekrar").onclick = async () => {
 };
 
 async function servisIste() {
+  if (!netGerek()) return mesaj("📵 İnternet bağlantısı yok", "kotu");
   if (_bugun && _bugun.durum === "aktif") {
     return mesaj("Bugün zaten aktif bir servis talebin var. Önce iptal et.", "bilgi");
   }
@@ -477,6 +566,7 @@ async function servisIste() {
 }
 
 async function servisIptal() {
+  if (!netGerek()) return mesaj("📵 İnternet bağlantısı yok", "kotu");
   const acikMi = await calismaKontrol(true);
   if (!acikMi) return mesaj(`Uygulama ${calismaBilgi.bas} – ${calismaBilgi.bit} saatleri arasında çalışmaktadır.`, "kotu");
   const onay = await onayla({
@@ -645,6 +735,11 @@ setInterval(() => calismaKontrol(true), 60000);
 setInterval(sunucuTarihOku, 300000);
 window.addEventListener("focus", () => { calismaKontrol(true); sunucuTarihOku(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) calismaKontrol(true); });
+
+window.addEventListener("offline", () => { netVar = false; netPencere(true); });
+window.addEventListener("online", () => { netKontrol(false); });
+netKontrol(true);
+setInterval(() => { if (!document.hidden) netKontrol(true); }, 60000);
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>

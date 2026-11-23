@@ -94,6 +94,11 @@ main h1{margin:0 0 14px}
   .yan .bas{display:none}
   .menuBtn{width:auto;white-space:nowrap;padding:9px 12px}
 }
+#netModal{z-index:200}
+#netModal .kutu{border-color:#7f1d1d;max-width:390px}
+#netModal .lg{background:rgba(239,68,68,.14)}
+#netModal p{margin-bottom:10px}
+#netDurum{background:#0d1626;border:1px solid #334155;border-radius:12px;padding:13px;margin:6px 0 2px;text-align:center;font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.4px;color:#7dd3fc}
 </style>
 </head>
 <body>
@@ -123,6 +128,16 @@ main h1{margin:0 0 14px}
     <input id="sfTekrar" type="password" autocomplete="new-password" placeholder="Tekrar yaz">
     <div id="sfHata" class="hata"></div>
     <button id="sfBtn" class="btn">Şifreyi Kaydet</button>
+  </div>
+</div>
+
+<div id="netModal" class="modal">
+  <div class="kutu">
+    <div class="lg">📡</div>
+    <h2>İnternet Bağlantısı Yok</h2>
+    <p>Yönetim paneli internet olmadan çalışmaz. Wi‑Fi veya mobil veri bağlantını kontrol et. Bağlantı gelince bu pencere kendiliğinden kapanır.</p>
+    <div id="netDurum" class="kapaliSaat"><span>📵</span> Bağlantı bekleniyor…</div>
+    <button id="netTekrar" class="btn">↻ Tekrar Dene</button>
   </div>
 </div>
 
@@ -292,6 +307,7 @@ let sifreBekle = null;
 async function girisYap() {
   const sicil = $("inSicil").value.trim(), sifre = $("inSifre").value.trim();
   hataSil("loginHata");
+  if (!netGerek()) return hata("loginHata", "İnternet bağlantısı yok");
   if (!sicil || !sifre) return hata("loginHata", "Sicil ve şifre gerekli");
   const btn = $("girisBtn"); btn.textContent = "…"; btn.disabled = true;
   try {
@@ -320,6 +336,7 @@ async function girisYap() {
 async function sifreKaydet() {
   const y = $("sfYeni").value.trim(), t = $("sfTekrar").value.trim();
   hataSil("sfHata");
+  if (!netGerek()) return hata("sfHata", "İnternet bağlantısı yok");
   if (y.length < 4) return hata("sfHata", "Şifre en az 4 karakter olmalı");
   if (y === sifreBekle.sicil) return hata("sfHata", "Şifre sicil numaran olamaz");
   if (y !== t) return hata("sfHata", "Şifreler eşleşmiyor");
@@ -337,6 +354,72 @@ async function sifreKaydet() {
   } catch (e) { hata("sfHata", "Hata: " + (e.message || e)); }
   finally { btn.textContent = "Şifreyi Kaydet"; btn.disabled = false; }
 }
+
+let netVar = true;
+let netTimer = null;
+
+async function internetVar() {
+  if (navigator.onLine === false) return false;
+  try {
+    const c = new AbortController();
+    const tm = setTimeout(() => c.abort(), 7000);
+    const r = await fetch((cfg.URL || "").replace(/\/$/, "") + "/rest/v1/rpc/servis_bugun", {
+      method: "POST",
+      cache: "no-store",
+      signal: c.signal,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: cfg.ANON_KEY || "",
+        Authorization: "Bearer " + (cfg.ANON_KEY || "")
+      },
+      body: "{}"
+    });
+    clearTimeout(tm);
+    JSON.parse(await r.text());
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function netPencere(yok) {
+  const m = $("netModal");
+  if (yok) {
+    $("netDurum").innerHTML = '<span>📵</span> Bağlantı bekleniyor…';
+    m.classList.add("acik");
+    if (!netTimer) netTimer = setInterval(() => netKontrol(true), 7000);
+  } else {
+    m.classList.remove("acik");
+    if (netTimer) { clearInterval(netTimer); netTimer = null; }
+  }
+}
+
+async function netKontrol(sessiz) {
+  const varMi = await internetVar();
+  const geldi = varMi && !netVar;
+  netVar = varMi;
+  netPencere(!varMi);
+  if (!varMi) return false;
+  $("netDurum").innerHTML = '<span>✅</span> Bağlantı var';
+  if (geldi && $("panel").style.display === "block") {
+    yukle(); personelYukle(); calismaYukle();
+    if (_gorunum === "ayarlar") silSayim();
+  }
+  return true;
+}
+
+function netGerek() {
+  if (netVar) return true;
+  netPencere(true);
+  return false;
+}
+
+$("netTekrar").onclick = async () => {
+  const b = $("netTekrar");
+  b.textContent = "⏳ Kontrol ediliyor…"; b.disabled = true;
+  await netKontrol(false);
+  b.textContent = "↻ Tekrar Dene"; b.disabled = false;
+};
 
 function ac() {
   $("loginModal").classList.remove("acik");
@@ -836,6 +919,12 @@ try {
 
 setInterval(() => { if ($("panel").style.display === "block") yukle(); }, 60000);
 setInterval(() => { if ($("panel").style.display === "block") calismaYukle(); }, 60000);
+
+window.addEventListener("offline", () => { netVar = false; netPencere(true); });
+window.addEventListener("online", () => { netKontrol(false); });
+netKontrol(true);
+setInterval(() => { if (!document.hidden) netKontrol(true); }, 60000);
+
 </script>
 </body>
 </html>
