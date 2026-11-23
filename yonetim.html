@@ -40,6 +40,8 @@ input:focus,select:focus{outline:2px solid #6366f1;border-color:#6366f1}
 table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;min-width:760px}
 th,td{border-bottom:1px solid #1e293b;padding:9px 10px;text-align:center;white-space:nowrap}
 th{background:#0d1626;color:#8fa1b8;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+#sOnizleAlan table{min-width:560px}
+#sOnizleAlan th{background:#2a1215;color:#fca5a5}
 tbody tr:hover{background:rgba(99,102,241,.08)}
 .rozet{font-size:10.5px;font-weight:900;padding:3px 9px;border-radius:99px;display:inline-block}
 .rozet.aktif{background:rgba(34,197,94,.18);color:#4ade80}
@@ -226,7 +228,7 @@ main h1{margin:0 0 14px}
 
         <div class="card" style="border-color:#7f1d1d">
           <h2 style="color:#fca5a5">🗑️ Geçmiş Talepleri Sil</h2>
-          <p class="hint" style="margin:0 0 10px">Filtre gir, önce <b>Önizle</b> ile kaç kayıt silineceğini gör, sonra onaylayarak sil. Silinen kayıt geri getirilemez.</p>
+          <p class="hint" style="margin:0 0 10px">Seçtiğin tarih aralığı ve filtreye uyan kayıtlar <b>tam olarak</b> silinir (bugün dahil, bitiş tarihi o günü kapsar). Önce <b>Önizle</b> ile listeyi gör, sonra onaylayarak sil. Silinen kayıt geri getirilemez.</p>
           <div class="hint" id="sSayim" style="margin:0 0 10px">—</div>
           <div class="filtre">
             <div><label>Başlangıç</label><input type="date" id="sBas"></div>
@@ -238,11 +240,14 @@ main h1{margin:0 0 14px}
             <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sOnizleBtn" class="btn ghost">🔎 Önizle</button></div>
             <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sSilBtn" class="btn tehliye">🗑️ Sil</button></div>
           </div>
-          <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#fca5a5;font-weight:800;margin:12px 0 0;cursor:pointer">
-            <input type="checkbox" id="sBugunDahil" style="width:18px;height:18px;flex:0 0 auto">
-            Bugünkü kayıtları da dahil et (bugünün servis listesi de silinir)
-          </label>
           <div class="hint" id="sSilDurum" style="margin-top:10px">—</div>
+          <div class="tblw" id="sOnizleAlan" hidden style="margin-top:12px">
+            <table>
+              <thead><tr><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Vardiya</th><th>Yön</th><th>Durum</th></tr></thead>
+              <tbody id="sOnizleTablo"></tbody>
+            </table>
+          </div>
+          <div class="hint" id="sOnizleAlt" style="margin-top:8px"></div>
         </div>
       </div>
     </main>
@@ -592,15 +597,9 @@ $("cYenileBtn").onclick = calismaYukle;
 
 function silFiltre() {
   const bgn = bugun();
-  const dun = gunEkle(bgn, -1);
-  const bugunDahil = $("sBugunDahil").checked;
-  const ust = bugunDahil ? bgn : dun;
-  let bit = $("sBit").value || ust;
-  if (bit > ust) bit = ust;
   return {
     bas: $("sBas").value || gunEkle(bgn, -30),
-    bit,
-    bugunDahil,
+    bit: $("sBit").value || bgn,
     vardiya: $("sVardiya").value || null,
     yon: $("sYon").value || null,
     durum: $("sDurum").value || null,
@@ -610,7 +609,6 @@ function silFiltre() {
 
 function silOzet(f) {
   const parca = [`${tarihKisa(f.bas)} → ${tarihKisa(f.bit)}`];
-  if (f.bugunDahil) parca.push("bugün dahil");
   if (f.vardiya) parca.push(f.vardiya === "sabah" ? "Sabah" : "Akşam");
   if (f.yon) parca.push(f.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM");
   if (f.durum) parca.push(f.durum === "aktif" ? "Aktif" : "İptal");
@@ -619,6 +617,35 @@ function silOzet(f) {
 }
 
 let _silImza = "", _silAdet = 0;
+const SIL_GOSTER = 200;
+
+function silListeTemizle() {
+  $("sOnizleAlan").hidden = true;
+  $("sOnizleTablo").innerHTML = "";
+  $("sOnizleAlt").textContent = "";
+}
+
+function silListeCiz(liste) {
+  if (!liste.length) { silListeTemizle(); return; }
+  const goster = liste.slice(0, SIL_GOSTER);
+  $("sOnizleTablo").innerHTML = goster.map((x) => {
+    const g = String(x.gun).slice(0, 10);
+    const aktif = x.durum === "aktif";
+    return `<tr>
+      <td>${tarihKisa(g)}</td>
+      <td>${String(x.saat).slice(0, 5)}</td>
+      <td>${esc(x.sicil)}</td>
+      <td>${esc(x.ad)}</td>
+      <td>${x.vardiya === "sabah" ? "Sabah" : "Akşam"}</td>
+      <td>${x.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM"}</td>
+      <td><span class="rozet ${aktif ? "aktif" : "iptal"}">${aktif ? "Aktif" : "İptal"}</span></td>
+    </tr>`;
+  }).join("");
+  $("sOnizleAlan").hidden = false;
+  $("sOnizleAlt").textContent = liste.length > SIL_GOSTER
+    ? `İlk ${SIL_GOSTER} kayıt gösteriliyor • toplam ${liste.length} kayıt silinecek`
+    : `${liste.length} kayıt listelendi`;
+}
 
 async function silSayim() {
   const el = $("sSayim");
@@ -650,10 +677,11 @@ async function silOnizle(sessiz) {
   const f = silFiltre();
   if (f.bas > f.bit) {
     _silAdet = 0; _silImza = "";
+    silListeTemizle();
     $("sSilDurum").innerHTML = `🔴 Başlangıç (${tarihKisa(f.bas)}) bitişten (${tarihKisa(f.bit)}) sonra. Tarihleri düzelt.`;
     return 0;
   }
-  $("sSilDurum").textContent = "⏳ Sayılıyor…";
+  $("sSilDurum").textContent = "⏳ Kayıtlar getiriliyor…";
   try {
     const { data, error } = await sb.rpc("servis_admin_talepler", {
       p_admin_sicil: A.sicil, p_admin_hash: A.hash,
@@ -662,16 +690,16 @@ async function silOnizle(sessiz) {
     });
     if (error) throw error;
     if (!data || !data.ok) throw new Error(data?.mesaj || "Yetkisiz");
-    const n = (data.liste || []).length;
-    _silImza = JSON.stringify(f); _silAdet = n;
-    $("sSilDurum").innerHTML = n
-      ? `🔎 <b>${n}</b> kayıt silinecek • ${silOzet(f)}`
-      : f.bugunDahil
-        ? `ℹ️ Bu filtreye uygun kayıt yok • ${silOzet(f)}`
-        : `ℹ️ Bu filtreye uygun <b>geçmiş</b> kayıt yok • ${silOzet(f)}<br>Bugünkü kayıtları silmek için yukarıdaki kutuyu işaretle.`;
-    return n;
+    const liste = data.liste || [];
+    _silImza = JSON.stringify(f); _silAdet = liste.length;
+    silListeCiz(liste);
+    $("sSilDurum").innerHTML = liste.length
+      ? `🔎 <b>${liste.length}</b> kayıt silinecek • ${silOzet(f)}`
+      : `ℹ️ Bu filtreye uygun kayıt yok • ${silOzet(f)}`;
+    return liste.length;
   } catch (e) {
     _silAdet = 0; _silImza = "";
+    silListeTemizle();
     $("sSilDurum").innerHTML = `🔴 ${e.message}`;
     return 0;
   }
@@ -679,28 +707,46 @@ async function silOnizle(sessiz) {
 
 $("sOnizleBtn").onclick = () => silOnizle(false);
 
+["sBas", "sBit", "sVardiya", "sYon", "sDurum", "sAra"].forEach((id) => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener(id === "sAra" ? "input" : "change", () => {
+    if (_silAdet || !$("sOnizleAlan").hidden) {
+      _silAdet = 0; _silImza = "";
+      silListeTemizle();
+      $("sSilDurum").textContent = "Filtre değişti — yeniden Önizle.";
+    }
+  });
+});
+
 $("sSilBtn").onclick = async () => {
   const f = silFiltre();
   if (JSON.stringify(f) !== _silImza) { const n = await silOnizle(true); if (!n) return; }
   if (!_silAdet) return alert("Silinecek kayıt yok.");
-  const uyari = f.bugunDahil ? "\n\n⚠️ BUGÜN DAHİL: bugünün servis listesi de silinecek!" : "";
+  const bugunVar = f.bit >= bugun() && f.bas <= bugun();
+  const uyari = bugunVar ? "\n\n⚠️ DİKKAT: Aralık bugünü kapsıyor, bugünkü servis listesi de silinecek!" : "";
   const yaz = prompt(
     `🗑️ KALICI SİLME\n\n${_silAdet} kayıt silinecek.\n${silOzet(f)}${uyari}\n\nBu işlem geri alınamaz. Onaylamak için SIL yaz:`
   );
   if ((yaz || "").trim().toLocaleUpperCase("tr") !== "SIL") return alert("Silme iptal edildi.");
   const btn = $("sSilBtn"); btn.disabled = true; btn.textContent = "…";
   try {
-    const prm = {
+    const { data, error } = await sb.rpc("servis_admin_talep_sil", {
       p_admin_sicil: A.sicil, p_admin_hash: A.hash,
       p_bas: f.bas, p_bit: f.bit,
       p_vardiya: f.vardiya, p_yon: f.yon, p_durum: f.durum, p_ara: f.ara
-    };
-    if (f.bugunDahil) prm.p_bugun_dahil = true;
-    const { data, error } = await sb.rpc("servis_admin_talep_sil", prm);
+    });
     if (error) throw error;
     if (!data || !data.ok) throw new Error(data?.mesaj || "Silinemedi");
-    alert(`✅ ${data.silinen} kayıt silindi.`);
+    if (data.silinen !== _silAdet) {
+      alert(`⚠️ ${data.silinen} kayıt silindi ama listede ${_silAdet} kayıt vardı.\n\n` +
+        `Veritabanındaki silme fonksiyonu eski sürümde olabilir. ` +
+        `Supabase SQL Editor'de supabase-duzeltme3.sql dosyasını çalıştır.`);
+    } else {
+      alert(`✅ ${data.silinen} kayıt silindi.`);
+    }
     _silAdet = 0; _silImza = "";
+    silListeTemizle();
     $("sSilDurum").textContent = `✅ ${data.silinen} kayıt silindi.`;
     yukle(); silSayim();
   } catch (e) {
