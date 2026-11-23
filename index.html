@@ -249,6 +249,7 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
         <div class="adim"><span class="no">3</span><span><b>Ana Ekrana Ekle</b> seçeneğine dokun, sonra <b>Ekle</b>.</span></div>
         <div class="adim"><span class="no">4</span><span>Uygulamayı ana ekrandaki simgeden aç, burada <b>Bildirimleri Aç</b>'a bas.</span></div>
       </div>
+      <div id="bilTani" class="iosIpucu" hidden style="border-color:#7f1d1d"></div>
     </div>
 
     <div class="card">
@@ -486,6 +487,63 @@ function pushDestek() {
   return !!(PUSH_PUB && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window);
 }
 
+function tarayiciAdi() {
+  const ua = navigator.userAgent;
+  if (navigator.brave) return "Brave";
+  if (/Edg\//.test(ua)) return "Edge";
+  if (/OPR\/|Opera/.test(ua)) return "Opera";
+  if (/SamsungBrowser/.test(ua)) return "Samsung Internet";
+  if (/HuaweiBrowser|HUAWEI/.test(ua)) return "Huawei tarayıcı";
+  if (/Firefox|FxiOS/.test(ua)) return "Firefox";
+  if (/CriOS/.test(ua)) return "Chrome (iOS)";
+  if (/Chrome\//.test(ua)) return "Chrome";
+  if (/Safari\//.test(ua)) return "Safari";
+  return "Tarayıcı";
+}
+
+function taniYaz(html) {
+  const k = $("bilTani");
+  if (!k) return;
+  if (!html) { k.hidden = true; k.innerHTML = ""; return; }
+  k.innerHTML = html;
+  k.hidden = false;
+}
+
+// Tarayıcının push servisine abone olur; ilk deneme başarısız olursa
+// eski/bozuk aboneliği ve service worker kaydını temizleyip bir kez daha dener.
+async function aboneDene() {
+  const kayit = await navigator.serviceWorker.ready;
+  let abone = await kayit.pushManager.getSubscription();
+  if (abone) {
+    try {
+      const j = abone.toJSON();
+      if (j && j.keys && j.keys.p256dh && j.keys.auth) return abone;
+    } catch (e) {}
+    await abone.unsubscribe().catch(() => {});
+    abone = null;
+  }
+  try {
+    return await kayit.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(PUSH_PUB) });
+  } catch (e) {
+    // ikinci deneme: temiz kurulum
+    try {
+      const eski = await navigator.serviceWorker.getRegistration();
+      if (eski && eski.pushManager) {
+        const s = await eski.pushManager.getSubscription();
+        if (s && s.unsubscribe) await s.unsubscribe().catch(() => {});
+      }
+      for (const k of await navigator.serviceWorker.getRegistrations()) {
+        if (k && typeof k.unregister === "function") await k.unregister().catch(() => {});
+      }
+      await navigator.serviceWorker.register("sw.js");
+      const k2 = await navigator.serviceWorker.ready;
+      return await k2.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(PUSH_PUB) });
+    } catch (e2) {
+      throw e;
+    }
+  }
+}
+
 function iosMu() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -543,17 +601,11 @@ async function bildirimAc() {
   if (!netGerek()) return mesaj("📵 İnternet bağlantısı yok", "kotu");
   if (!pushDestek()) { bilYaz(); return mesaj("Bu cihaz/tarayıcı bildirimi desteklemiyor", "kotu"); }
   const btn = $("bilBtn"); btn.disabled = true;
+  taniYaz("");
   try {
     const izin = await Notification.requestPermission();
     if (izin !== "granted") { bilYaz(); return mesaj("Bildirim izni verilmedi", "bilgi"); }
-    const kayit = await navigator.serviceWorker.ready;
-    let abone = await kayit.pushManager.getSubscription();
-    if (!abone) {
-      abone = await kayit.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: b64ToUint8(PUSH_PUB)
-      });
-    }
+    const abone = await aboneDene();
     const j = abone.toJSON();
     const { data, error } = await sb.rpc("servis_push_kaydet", {
       p_sicil: S.sicil, p_hash: S.hash,
@@ -568,9 +620,22 @@ async function bildirimAc() {
     mesaj("🔔 Bildirimler açıldı", "iyi");
   } catch (e) {
     const m = String(e.message || e);
-    mesaj(m.includes("PGRST202") || m.includes("servis_push_kaydet")
-      ? "Sunucuda bildirim tabloları yok. Yönetici supabase-duzeltme6.sql çalıştırmalı."
-      : "Bildirim açılamadı: " + m, "kotu");
+    if (m.includes("PGRST202") || m.includes("servis_push_kaydet")) {
+      return mesaj("Sunucuda bildirim tabloları yok. Yönetici supabase-duzeltme6.sql çalıştırmalı.", "kotu");
+    }
+    if (/push service error/i.test(m)) {
+      taniYaz(
+        `<b>Bildirim servisine ulaşılamadı (${tarayiciAdi()})</b>` +
+        `<div class="adim"><span class="no">1</span><div>Sayfayı <b>gizli sekmede değil</b>, normal sekmede aç.</div></div>` +
+        `<div class="adim"><span class="no">2</span><div>VPN varsa kapat; Wi‑Fi yerine <b>mobil veriyle</b> dene (bazı ağlar Google bildirim sunucusunu engelliyor).</div></div>` +
+        `<div class="adim"><span class="no">3</span><div>Chrome kullan. Brave, Opera, Huawei tarayıcı ve bazı marka tarayıcılar Google bildirim servisini kullanmaz.</div></div>` +
+        `<div class="adim"><span class="no">4</span><div>Chrome'da <b>Ayarlar → Site ayarları → Bildirimler</b> bölümünde bu siteyi sil, sonra bu sayfayı yenile.</div></div>` +
+        `<div class="adim"><span class="no">5</span><div>Telefonda Google Play Hizmetleri güncel mi kontrol et.</div></div>` +
+        `<div class="adim"><span class="no">6</span><div>Bunlar olmazsa bana <b>telefon modeli + tarayıcı adı</b> yaz, sunucu taraflı alternatif kuralım.</div></div>`
+      );
+      return mesaj("Bildirim açılamadı: tarayıcı bildirim servisine ulaşamıyor", "kotu");
+    }
+    mesaj("Bildirim açılamadı: " + m, "kotu");
   } finally { btn.disabled = false; }
 }
 
@@ -587,6 +652,7 @@ async function bildirimKapat() {
     }
     _bilAbone = null;
     bilYaz();
+    taniYaz("");
     mesaj("🔕 Bildirimler kapatıldı", "bilgi");
   } catch (e) {
     mesaj("Kapatılamadı: " + (e.message || e), "kotu");
