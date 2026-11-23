@@ -65,6 +65,7 @@ tbody tr:hover{background:rgba(99,102,241,.08)}
 .ekle>div{flex:1 1 140px}
 .kucuk{padding:6px 10px;font-size:11.5px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#c7d3e3;cursor:pointer;font-weight:700}
 .kucuk.tehliye{color:#fca5a5;border-color:#7f1d1d}
+.kucuk.tehliye:hover{background:#7f1d1d;color:#fff}
 .talepler{display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
 .talepler .card{margin-bottom:0}
 .talepler .card.sabah{border-top:3px solid #f59e0b}
@@ -228,7 +229,7 @@ main h1{margin:0 0 14px}
 
         <div class="card" style="border-color:#7f1d1d">
           <h2 style="color:#fca5a5">🗑️ Geçmiş Talepleri Sil</h2>
-          <p class="hint" style="margin:0 0 10px">Seçtiğin tarih aralığı ve filtreye uyan kayıtlar <b>tam olarak</b> silinir (bugün dahil, bitiş tarihi o günü kapsar). Önce <b>Önizle</b> ile listeyi gör, sonra onaylayarak sil. Silinen kayıt geri getirilemez.</p>
+          <p class="hint" style="margin:0 0 10px">Seçtiğin tarih aralığı ve filtreye uyan kayıtlar <b>tam olarak</b> silinir (bugün dahil, bitiş tarihi o günü kapsar). Önce <b>Önizle</b> ile listeyi gör, sonra onaylayarak sil. Listede her satırın yanındaki 🗑️ ile <b>tek tek</b>, üstteki <b>Toplu Sil</b> ile filtreye uyanların hepsi silinir. Silinen kayıt geri getirilemez.</p>
           <div class="hint" id="sSayim" style="margin:0 0 10px">—</div>
           <div class="filtre">
             <div><label>Başlangıç</label><input type="date" id="sBas"></div>
@@ -238,12 +239,12 @@ main h1{margin:0 0 14px}
             <div><label>Durum</label><select id="sDurum"><option value="">Tümü</option><option value="aktif">Aktif</option><option value="iptal">İptal</option></select></div>
             <div><label>Ara (sicil / ad)</label><input id="sAra" placeholder="örn 1001 / Ahmet"></div>
             <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sOnizleBtn" class="btn ghost">🔎 Önizle</button></div>
-            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sSilBtn" class="btn tehliye">🗑️ Sil</button></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sSilBtn" class="btn tehliye">🗑️ Toplu Sil</button></div>
           </div>
           <div class="hint" id="sSilDurum" style="margin-top:10px">—</div>
           <div class="tblw" id="sOnizleAlan" hidden style="margin-top:12px">
             <table>
-              <thead><tr><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Vardiya</th><th>Yön</th><th>Durum</th></tr></thead>
+              <thead><tr><th>Gün</th><th>Saat</th><th>Sicil</th><th>Ad</th><th>Vardiya</th><th>Yön</th><th>Durum</th><th>İşlem</th></tr></thead>
               <tbody id="sOnizleTablo"></tbody>
             </table>
           </div>
@@ -616,18 +617,20 @@ function silOzet(f) {
   return parca.join(" • ");
 }
 
-let _silImza = "", _silAdet = 0;
+let _silImza = "", _silAdet = 0, _silListe = [];
 const SIL_GOSTER = 200;
 
 function silListeTemizle() {
   $("sOnizleAlan").hidden = true;
   $("sOnizleTablo").innerHTML = "";
   $("sOnizleAlt").textContent = "";
+  _silListe = [];
 }
 
 function silListeCiz(liste) {
+  _silListe = liste.slice(0, SIL_GOSTER);
   if (!liste.length) { silListeTemizle(); return; }
-  const goster = liste.slice(0, SIL_GOSTER);
+  const goster = _silListe;
   $("sOnizleTablo").innerHTML = goster.map((x) => {
     const g = String(x.gun).slice(0, 10);
     const aktif = x.durum === "aktif";
@@ -639,6 +642,7 @@ function silListeCiz(liste) {
       <td>${x.vardiya === "sabah" ? "Sabah" : "Akşam"}</td>
       <td>${x.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM"}</td>
       <td><span class="rozet ${aktif ? "aktif" : "iptal"}">${aktif ? "Aktif" : "İptal"}</span></td>
+      <td><button class="kucuk tehliye" data-sid="${Number(x.id)}" title="Bu kaydı sil">🗑️</button></td>
     </tr>`;
   }).join("");
   $("sOnizleAlan").hidden = false;
@@ -719,6 +723,42 @@ $("sOnizleBtn").onclick = () => silOnizle(false);
   });
 });
 
+$("sOnizleTablo").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-sid]");
+  if (!b) return;
+  await tekSil(b.dataset.sid, b);
+});
+
+async function tekSil(id, btn) {
+  const kayit = _silListe.find((x) => Number(x.id) === Number(id));
+  const g = kayit ? String(kayit.gun).slice(0, 10) : "";
+  const kim = kayit ? `${kayit.sicil} — ${kayit.ad}` : `#${id}`;
+  const detay = kayit
+    ? `${kim}\n${tarihKisa(g)} • ${String(kayit.saat).slice(0, 5)} • ${kayit.vardiya === "sabah" ? "Sabah" : "Akşam"} • ${kayit.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM"}`
+    : `Kayıt #${id}`;
+  if (!confirm(`🗑️ TEK KAYIT SİLME\n\n${detay}\n\nBu kayıt kalıcı olarak silinsin mi? Geri alınamaz.`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = "…"; }
+  try {
+    const { data, error } = await sb.rpc("servis_admin_talep_sil_tek", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash, p_id: Number(id)
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error(data?.mesaj || "Silinemedi");
+    if (!data.silinen) throw new Error("Kayıt bulunamadı (başka biri silmiş olabilir)");
+    // liste ve sayaçları sunucudan tazele
+    await silOnizle(true);
+    $("sSilDurum").innerHTML = `✅ ${kim} kaydı silindi.`;
+    yukle(); silSayim();
+  } catch (e) {
+    const msg = e.message || String(e);
+    const eksik = /could not find the function|PGRST202|schema cache/i.test(msg);
+    alert("🔴 " + msg + (eksik
+      ? "\n\nSunucuda tek kayıt silme fonksiyonu yok. Supabase SQL Editor'de supabase-duzeltme4.sql dosyasını çalıştır."
+      : ""));
+    if (btn) { btn.disabled = false; btn.textContent = "🗑️"; }
+  }
+}
+
 $("sSilBtn").onclick = async () => {
   const f = silFiltre();
   if (JSON.stringify(f) !== _silImza) { const n = await silOnizle(true); if (!n) return; }
@@ -751,7 +791,7 @@ $("sSilBtn").onclick = async () => {
     yukle(); silSayim();
   } catch (e) {
     alert("🔴 " + (e.message || e));
-  } finally { btn.disabled = false; btn.textContent = "🗑️ Sil"; }
+  } finally { btn.disabled = false; btn.textContent = "🗑️ Toplu Sil"; }
 };
 
 $("girisBtn").onclick = girisYap;$("inSifre").onkeydown = (e) => { if (e.key === "Enter") girisYap(); };
