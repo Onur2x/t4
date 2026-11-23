@@ -45,6 +45,8 @@ main{max-width:520px;margin:0 auto;padding:16px 14px 40px}
 .eylem .iste{background:linear-gradient(135deg,#22c55e,#15803d);color:#04210f;box-shadow:0 8px 24px rgba(34,197,94,.3)}
 .eylem .iptal{background:#1e293b;color:#fca5a5;border:1px solid #7f1d1d}
 .eylem button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.eylem .iste.zaten{background:linear-gradient(135deg,#1e293b,#0f172a);color:#86efac;border:1px solid #15803d;box-shadow:none}
+.eylem .iste.zaten:disabled{opacity:1;color:#86efac}
 #mesaj{margin-top:12px;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700;display:none;text-align:center}
 #mesaj.iyi{display:block;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.5);color:#86efac}
 #mesaj.kotu{display:block;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.5);color:#fca5a5}
@@ -421,6 +423,7 @@ async function calismaKontrol(sessiz) {
       $("kapaliSaat").innerHTML = `<span>🕐</span> ${data.simdi} <span>→</span> ${data.bas} – ${data.bit}`;
       $("kapaliModal").classList.add("acik");
     }
+    dugmeDurum();
     return calismaAcik;
   } catch (e) {
     if (!sessiz) console.warn("Çalışma saati kontrolü yapılamadı:", e.message);
@@ -436,6 +439,12 @@ $("kapaliTekrar").onclick = async () => {
 };
 
 async function servisIste() {
+  if (_bugun && _bugun.durum === "aktif") {
+    return mesaj("Bugün zaten aktif bir servis talebin var. Önce iptal et.", "bilgi");
+  }
+  // Bayat sayfa kalmasın: her denemede saat ve bugünkü talep tazelenir
+  const acikMi = await calismaKontrol(true);
+  if (!acikMi) return mesaj(`Uygulama ${calismaBilgi.bas} – ${calismaBilgi.bit} saatleri arasında çalışmaktadır.`, "kotu");
   if (!seciliVardiya) return mesaj("Önce SABAH veya AKŞAM seç", "kotu");
   const onay = await onayla({
     baslik: "Talebi Onayla",
@@ -468,6 +477,8 @@ async function servisIste() {
 }
 
 async function servisIptal() {
+  const acikMi = await calismaKontrol(true);
+  if (!acikMi) return mesaj(`Uygulama ${calismaBilgi.bas} – ${calismaBilgi.bit} saatleri arasında çalışmaktadır.`, "kotu");
   const onay = await onayla({
     baslik: "İptal Onayı",
     yon: _bugun ? `${VARD_AD[_bugun.vardiya]} • ${YON_AD[_bugun.yon]}` : "",
@@ -502,13 +513,30 @@ async function taleplerim(gun) {
 }
 
 let _bugun = null;
+
+// Bugünkü talebe ve çalışma saatine göre butonların durumu
+function dugmeDurum() {
+  const aktifVar = !!(_bugun && _bugun.durum === "aktif");
+  const it = $("isteBtn");
+  if (it) {
+    it.disabled = aktifVar || !calismaAcik;
+    it.classList.toggle("zaten", aktifVar);
+    it.textContent = aktifVar ? "✅ Bugünkü servis talebin var" : "✅ Servis İstiyorum";
+  }
+  const ip = $("iptalBtn");
+  if (ip) {
+    ip.style.display = aktifVar ? "" : "none";
+    ip.disabled = !calismaAcik;
+  }
+}
+
 async function bugunYukle() {
   const k = $("bugunKutu");
   try {
     const l = await taleplerim(etkinGun());
     const data = l[0];
     _bugun = data || null;
-    $("iptalBtn").style.display = data && data.durum === "aktif" ? "" : "none";
+    dugmeDurum();
     if (!data) { k.innerHTML = '<div class="bos">Henüz talebin yok</div>'; return; }
     const aktif = data.durum === "aktif";
     k.innerHTML = `<div class="bugun">
@@ -519,7 +547,8 @@ async function bugunYukle() {
     if (aktif) { seciliVardiya = data.vardiya; seciliYon = data.yon; vardiyaCiz(); yonCiz(); }
   } catch (e) {
     k.innerHTML = '<div class="bos">Yüklenemedi</div>';
-    $("iptalBtn").style.display = "none";
+    _bugun = null;
+    dugmeDurum();
   }
 }
 
