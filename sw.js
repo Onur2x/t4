@@ -1,4 +1,4 @@
-const VERSIYON = "t4-v2";
+const VERSIYON = "t4-v3";
 const KABUK = ["./", "./index.html", "./yonetim.html", "./manifest.webmanifest", "./supabase-config.js"];
 
 self.addEventListener("install", (e) => {

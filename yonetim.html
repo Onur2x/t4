@@ -27,6 +27,8 @@ input,select{width:100%;background:#0d1626;color:#e8eef7;border:1px solid #33415
 input:focus,select:focus{outline:2px solid #6366f1;border-color:#6366f1}
 .btn{background:linear-gradient(135deg,#6366f1,#4338ca);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13.5px;font-weight:800;cursor:pointer}
 .btn.ghost{background:#1e293b;color:#c7d3e3;border:1px solid #334155}
+.btn.tehliye{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
+.btn:disabled,.kucuk:disabled{opacity:.45;cursor:not-allowed}
 .kpirow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
 .kpi{background:linear-gradient(180deg,#16233f,#111c33);border:1px solid #1e293b;border-left:4px solid #6366f1;border-radius:13px;padding:12px 14px}
 .kpi .lb{font-size:11px;color:#8fa1b8;font-weight:700}
@@ -221,6 +223,22 @@ main h1{margin:0 0 14px}
           </div>
           <div class="hint" id="cDurum" style="margin-top:10px">—</div>
         </div>
+
+        <div class="card" style="border-color:#7f1d1d">
+          <h2 style="color:#fca5a5">🗑️ Geçmiş Talepleri Sil</h2>
+          <p class="hint" style="margin:0 0 12px">Yalnızca <b>bugünden önceki</b> talepler silinebilir. Filtre gir, önce <b>Önizle</b> ile kaç kayıt silineceğini gör, sonra onaylayarak sil. Silinen kayıt geri getirilemez.</p>
+          <div class="filtre">
+            <div><label>Başlangıç</label><input type="date" id="sBas"></div>
+            <div><label>Bitiş</label><input type="date" id="sBit"></div>
+            <div><label>Vardiya</label><select id="sVardiya"><option value="">Tümü</option><option value="sabah">Sabah</option><option value="aksam">Akşam</option></select></div>
+            <div><label>Yön</label><select id="sYon"><option value="">Tümü</option><option value="karadeniz">KARADENİZ</option><option value="mselam">M.SELAM</option></select></div>
+            <div><label>Durum</label><select id="sDurum"><option value="">Tümü</option><option value="aktif">Aktif</option><option value="iptal">İptal</option></select></div>
+            <div><label>Ara (sicil / ad)</label><input id="sAra" placeholder="örn 1001 / Ahmet"></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sOnizleBtn" class="btn ghost">🔎 Önizle</button></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="sSilBtn" class="btn tehliye">🗑️ Sil</button></div>
+          </div>
+          <div class="hint" id="sSilDurum" style="margin-top:10px">—</div>
+        </div>
       </div>
     </main>
   </div>
@@ -294,6 +312,7 @@ async function sifreKaydet() {
   if (y.length < 4) return hata("sfHata", "Şifre en az 4 karakter olmalı");
   if (y === sifreBekle.sicil) return hata("sfHata", "Şifre sicil numaran olamaz");
   if (y !== t) return hata("sfHata", "Şifreler eşleşmiyor");
+  if (!confirm("Şifren kaydedilecek. Bu işlem geri alınamaz.\nOnaylıyor musun?")) return;
   const btn = $("sfBtn"); btn.textContent = "…"; btn.disabled = true;
   try {
     const h = await hashla(sifreBekle.sicil, y);
@@ -312,7 +331,15 @@ function ac() {
   $("loginModal").classList.remove("acik");
   $("panel").style.display = "block";
   $("kimTxt").textContent = `${A.ad} (${A.sicil}) • Yönetici`;
-  if (!$("fBas").value) { $("fBas").value = gunEkle(bugun(), -6); $("fBit").value = bugun(); }
+  if (!$("fBas").value) {
+    $("fBas").value = bugun();
+    $("fBit").value = bugun();
+    $("fDurum").value = "aktif";
+  }
+  if (!$("sBas").value) {
+    $("sBas").value = gunEkle(bugun(), -30);
+    $("sBit").value = gunEkle(bugun(), -1);
+  }
   gorunumAc("talepler");
   yukle(); personelYukle(); calismaYukle();
 }
@@ -340,7 +367,7 @@ function gorunumAc(ad) {
 
 function filtreOku() {
   return {
-    bas: $("fBas").value || gunEkle(bugun(), -6),
+    bas: $("fBas").value || bugun(),
     bit: $("fBit").value || bugun(),
     yon: $("fYon").value,
     durum: $("fDurum").value,
@@ -456,9 +483,9 @@ function rozetYaz(kayitSayisi) {
   const f = filtreOku();
   let n = 0;
   if (f.yon) n++;
-  if (f.durum) n++;
+  if (f.durum !== "aktif") n++;
   if (f.ara) n++;
-  if (f.bas !== gunEkle(bugun(), -6) || f.bit !== bugun()) n++;
+  if (f.bas !== bugun() || f.bit !== bugun()) n++;
   $("ckTalep").textContent = kayitSayisi > 0 ? String(kayitSayisi) : "";
   $("ckFiltre").textContent = n > 0 ? String(n) : "";
 }
@@ -478,8 +505,10 @@ async function personelYukle() {
       <td>${p.kilitli ? '<span class="rozet iptal">🔒 Kilitli</span>' : '—'}</td>
       <td>${p.aktif ? '<span class="rozet aktif">Aktif</span>' : '<span class="rozet iptal">Pasif</span>'}</td>
       <td>
-        <button class="kucuk" onclick="pDurum('${p.sicil}',${!p.aktif})">${p.aktif ? "Pasif Yap" : "Aktif Yap"}</button>
-        <button class="kucuk tehliye" onclick="pSifirla('${p.sicil}')">♻️ Şifre Sıfırla</button>
+        ${p.admin && p.aktif
+          ? '<button class="kucuk" disabled title="Yönetici pasif yapılamaz">🔒 Yönetici</button>'
+          : `<button class="kucuk" onclick="pDurum('${p.sicil}',${!p.aktif})">${p.aktif ? "Pasif Yap" : "Aktif Yap"}</button>`}
+        <button class="kucuk tehliye" onclick="pSifirla('${p.sicil}',${p.admin ? "true" : "false"})">♻️ Şifre Sıfırla</button>
       </td></tr>`).join("") || `<tr><td colspan="7" class="bos">Personel yok</td></tr>`;
   } catch (e) {
     k.innerHTML = `<tr><td colspan="7" class="bos">🔴 ${e.message}</td></tr>`;
@@ -487,13 +516,17 @@ async function personelYukle() {
 }
 
 window.pDurum = async (sicil, aktif) => {
+  if (!aktif && !confirm(`${sicil} pasif yapılsın mı?\nBu kişi bir daha giriş yapamayacak.`)) return;
   const { data, error } = await sb.rpc("servis_personel_durum", { p_admin_sicil: A.sicil, p_admin_hash: A.hash, p_sicil: sicil, p_aktif: aktif });
   if (error || !data?.ok) return alert("🔴 " + (error?.message || data?.mesaj || "Hata"));
   personelYukle();
 };
 
-window.pSifirla = async (sicil) => {
-  if (!confirm(`${sicil} şifresi sıfırlansın mı?\nSonraki girişte şifre = sicil olacak.`)) return;
+window.pSifirla = async (sicil, yonetici) => {
+  let mesaj = `${sicil} şifresi sıfırlansın mı?\nSonraki girişte şifre = sicil olacak.`;
+  if (yonetici) mesaj = `⚠️ DİKKAT: ${sicil} bir YÖNETİCİ.\n\nŞifresi sıfırlanacak ve sonraki girişte şifre = sicil olacak.\nYönetici yetkileri elinde kalır. Emin misin?`;
+  if (!confirm(mesaj)) return;
+  if (yonetici && !confirm(`SON ONAY: ${sicil} yöneticisinin şifresi sıfırlansın mı?`)) return;
   const { data, error } = await sb.rpc("servis_sifre_sifirla", { p_admin_sicil: A.sicil, p_admin_hash: A.hash, p_sicil: sicil });
   if (error || !data?.ok) return alert("🔴 " + (error?.message || data?.mesaj || "Hata"));
   alert("✅ Sıfırlandı");
@@ -551,6 +584,83 @@ $("cKaydetBtn").onclick = async () => {
 
 $("cYenileBtn").onclick = calismaYukle;
 
+function silFiltre() {
+  const dun = gunEkle(bugun(), -1);
+  let bit = $("sBit").value || dun;
+  if (bit > dun) bit = dun;
+  return {
+    bas: $("sBas").value || gunEkle(bugun(), -30),
+    bit,
+    vardiya: $("sVardiya").value || null,
+    yon: $("sYon").value || null,
+    durum: $("sDurum").value || null,
+    ara: $("sAra").value.trim() || null
+  };
+}
+
+function silOzet(f) {
+  const parca = [`${tarihKisa(f.bas)} → ${tarihKisa(f.bit)}`];
+  if (f.vardiya) parca.push(f.vardiya === "sabah" ? "Sabah" : "Akşam");
+  if (f.yon) parca.push(f.yon === "karadeniz" ? "KARADENİZ" : "M.SELAM");
+  if (f.durum) parca.push(f.durum === "aktif" ? "Aktif" : "İptal");
+  if (f.ara) parca.push(`"${f.ara}"`);
+  return parca.join(" • ");
+}
+
+let _silImza = "", _silAdet = 0;
+
+async function silOnizle(sessiz) {
+  const f = silFiltre();
+  $("sSilDurum").textContent = "⏳ Sayılıyor…";
+  try {
+    const { data, error } = await sb.rpc("servis_admin_talepler", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash,
+      p_bas: f.bas, p_bit: f.bit,
+      p_vardiya: f.vardiya, p_yon: f.yon, p_durum: f.durum, p_ara: f.ara
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error(data?.mesaj || "Yetkisiz");
+    const n = (data.liste || []).length;
+    _silImza = JSON.stringify(f); _silAdet = n;
+    $("sSilDurum").innerHTML = n
+      ? `🔎 <b>${n}</b> geçmiş kayıt silinecek • ${silOzet(f)}`
+      : `ℹ️ Bu filtreye uygun geçmiş kayıt yok • ${silOzet(f)}`;
+    return n;
+  } catch (e) {
+    _silAdet = 0; _silImza = "";
+    $("sSilDurum").innerHTML = `🔴 ${e.message}`;
+    return 0;
+  }
+}
+
+$("sOnizleBtn").onclick = () => silOnizle(false);
+
+$("sSilBtn").onclick = async () => {
+  const f = silFiltre();
+  if (JSON.stringify(f) !== _silImza) { const n = await silOnizle(true); if (!n) return; }
+  if (!_silAdet) return alert("Silinecek geçmiş kayıt yok.");
+  const yaz = prompt(
+    `🗑️ KALICI SİLME\n\n${_silAdet} kayıt silinecek.\n${silOzet(f)}\n\nBu işlem geri alınamaz. Onaylamak için SIL yaz:`
+  );
+  if ((yaz || "").trim().toLocaleUpperCase("tr") !== "SIL") return alert("Silme iptal edildi.");
+  const btn = $("sSilBtn"); btn.disabled = true; btn.textContent = "…";
+  try {
+    const { data, error } = await sb.rpc("servis_admin_talep_sil", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash,
+      p_bas: f.bas, p_bit: f.bit,
+      p_vardiya: f.vardiya, p_yon: f.yon, p_durum: f.durum, p_ara: f.ara
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error(data?.mesaj || "Silinemedi");
+    alert(`✅ ${data.silinen} kayıt silindi.`);
+    _silAdet = 0; _silImza = "";
+    $("sSilDurum").textContent = `✅ ${data.silinen} kayıt silindi.`;
+    yukle();
+  } catch (e) {
+    alert("🔴 " + (e.message || e));
+  } finally { btn.disabled = false; btn.textContent = "🗑️ Sil"; }
+};
+
 $("girisBtn").onclick = girisYap;$("inSifre").onkeydown = (e) => { if (e.key === "Enter") girisYap(); };
 $("sfBtn").onclick = sifreKaydet;
 $("sfTekrar").onkeydown = (e) => { if (e.key === "Enter") sifreKaydet(); };
@@ -578,10 +688,10 @@ document.addEventListener("click", (e) => {
 $("fAra").oninput = () => { clearTimeout(window._ar); window._ar = setTimeout(yukle, 300); };
 $("fUygulaBtn").onclick = () => { yukle(); gorunumAc("talepler"); };
 $("fTemizleBtn").onclick = () => {
-  $("fBas").value = gunEkle(bugun(), -6);
+  $("fBas").value = bugun();
   $("fBit").value = bugun();
   $("fYon").value = "";
-  $("fDurum").value = "";
+  $("fDurum").value = "aktif";
   $("fAra").value = "";
   yukle();
 };
