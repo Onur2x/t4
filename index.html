@@ -6,7 +6,14 @@
 <title>Servis Talebi</title>
 <meta name="theme-color" content="#0b1220">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Servis">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<script src="push-config.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
@@ -111,6 +118,16 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
 #netModal .kutu{border-color:#7f1d1d;max-width:390px}
 #netModal .lg{background:rgba(239,68,68,.14)}
 #netModal p{margin-bottom:10px}
+.bilBas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.bilBas h3{margin:0}
+.bilDurum{margin-left:auto;font-size:11px;font-weight:900;border-radius:99px;padding:3px 10px;background:rgba(148,163,184,.16);color:#94a3b8;white-space:nowrap}
+.bilDurum.acik{background:rgba(34,197,94,.18);color:#4ade80}
+.bilDurum.kapali{background:rgba(239,68,68,.16);color:#f87171}
+.bilAciklama{font-size:12px;color:#8fa1b8;line-height:1.5;margin:0 0 4px}
+.iosIpucu{margin-top:10px;border:1px solid #334155;border-radius:12px;background:#0d1626;padding:12px 13px;font-size:12px;line-height:1.65;color:#b9c7da}
+.iosIpucu b{color:#e8eef7}
+.iosIpucu .adim{display:flex;gap:8px;margin-top:7px}
+.iosIpucu .no{flex:0 0 auto;width:19px;height:19px;border-radius:99px;background:#0ea5e9;color:#04212f;font-size:11px;font-weight:900;display:grid;place-items:center;margin-top:1px}
 </style>
 </head>
 <body>
@@ -213,6 +230,25 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
     <div class="card">
       <h3>Bugünkü talebim</h3>
       <div id="bugunKutu"><div class="bos">Henüz talebin yok</div></div>
+    </div>
+
+    <div class="card">
+      <div class="bilBas">
+        <h3>🔔 Bildirimler</h3>
+        <span id="bilDurum" class="bilDurum">—</span>
+      </div>
+      <p class="bilAciklama" id="bilAciklama">Servisin kalkmadan önce ve talebinle ilgili değişikliklerde telefondan bildirim al.</p>
+      <div class="eylem">
+        <button id="bilBtn" class="iste">🔔 Bildirimleri Aç</button>
+        <button id="bilKapatBtn" class="iptal" style="display:none">🔕 Bildirimleri Kapat</button>
+      </div>
+      <div id="iosIpucu" class="iosIpucu" hidden>
+        <b>iPhone / iPad için kurulum</b>
+        <div class="adim"><span class="no">1</span><span>Bu sayfayı <b>Safari</b> ile aç (Chrome değil).</span></div>
+        <div class="adim"><span class="no">2</span><span>Alttaki <b>Paylaş</b> düğmesine (□↑) bas.</span></div>
+        <div class="adim"><span class="no">3</span><span><b>Ana Ekrana Ekle</b> seçeneğine dokun, sonra <b>Ekle</b>.</span></div>
+        <div class="adim"><span class="no">4</span><span>Uygulamayı ana ekrandaki simgeden aç, burada <b>Bildirimleri Aç</b>'a bas.</span></div>
+      </div>
     </div>
 
     <div class="card">
@@ -434,6 +470,129 @@ function netGerek() {
   return false;
 }
 
+// ---------------- bildirimler (web push) ----------------
+const PUSH_PUB = (window.__PUSH__ && window.__PUSH__.VAPID_PUBLIC) || "";
+let _bilAbone = null;
+
+function b64ToUint8(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const s = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const a = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+  return a;
+}
+
+function pushDestek() {
+  return !!(PUSH_PUB && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window);
+}
+
+function iosMu() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function standaloneMi() {
+  return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone === true;
+}
+
+function bilYaz() {
+  const d = $("bilDurum");
+  d.className = "bilDurum";
+  const durum = !pushDestek()
+    ? "desteklenmiyor"
+    : Notification.permission === "denied"
+      ? "engelli"
+      : _bilAbone
+        ? "açık"
+        : "kapalı";
+  if (durum === "açık") {
+    d.classList.add("acik"); d.textContent = "✅ Bildirimler açık";
+  } else if (durum === "kapalı") {
+    d.classList.add("kapali"); d.textContent = "🔕 Kapalı";
+  } else if (durum === "engelli") {
+    d.classList.add("kapali"); d.textContent = "🚫 Tarayıcıda engelli";
+  } else {
+    d.textContent = "⚠️ Desteklenmiyor";
+  }
+  const acik = durum === "açık";
+  $("bilBtn").style.display = acik ? "none" : "";
+  $("bilKapatBtn").style.display = acik ? "" : "none";
+  $("bilBtn").disabled = durum === "desteklenmiyor" || durum === "engelli";
+  if (durum === "engelli") {
+    $("bilAciklama").textContent = "Bildirim izni tarayıcıda kapatılmış. Tarayıcı ayarlarından bu site için bildirime izin ver, sonra sayfayı yenile.";
+  } else if (durum === "desteklenmiyor") {
+    $("bilAciklama").textContent = iosMu() && !standaloneMi()
+      ? "iPhone'da bildirim için uygulamayı ana ekrana eklemek gerekir. Aşağıdaki adımları izle."
+      : "Bu tarayıcı bildirimleri desteklemiyor. Güncel Chrome veya Safari kullan.";
+  } else {
+    $("bilAciklama").textContent = "Servisin kalkmadan önce ve talebinle ilgili değişikliklerde telefondan bildirim al.";
+  }
+  $("iosIpucu").hidden = !(iosMu() && !standaloneMi());
+}
+
+async function bilOku() {
+  try {
+    if (!pushDestek()) { _bilAbone = null; bilYaz(); return; }
+    const kayit = await navigator.serviceWorker.ready;
+    _bilAbone = await kayit.pushManager.getSubscription();
+  } catch (e) { _bilAbone = null; }
+  bilYaz();
+}
+
+async function bildirimAc() {
+  if (!netGerek()) return mesaj("📵 İnternet bağlantısı yok", "kotu");
+  if (!pushDestek()) { bilYaz(); return mesaj("Bu cihaz/tarayıcı bildirimi desteklemiyor", "kotu"); }
+  const btn = $("bilBtn"); btn.disabled = true;
+  try {
+    const izin = await Notification.requestPermission();
+    if (izin !== "granted") { bilYaz(); return mesaj("Bildirim izni verilmedi", "bilgi"); }
+    const kayit = await navigator.serviceWorker.ready;
+    let abone = await kayit.pushManager.getSubscription();
+    if (!abone) {
+      abone = await kayit.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: b64ToUint8(PUSH_PUB)
+      });
+    }
+    const j = abone.toJSON();
+    const { data, error } = await sb.rpc("servis_push_kaydet", {
+      p_sicil: S.sicil, p_hash: S.hash,
+      p_endpoint: abone.endpoint,
+      p_p256dh: j.keys.p256dh, p_auth: j.keys.auth,
+      p_ua: navigator.userAgent.slice(0, 300)
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error(data?.mesaj || "Kaydedilemedi");
+    _bilAbone = abone;
+    bilYaz();
+    mesaj("🔔 Bildirimler açıldı", "iyi");
+  } catch (e) {
+    const m = String(e.message || e);
+    mesaj(m.includes("PGRST202") || m.includes("servis_push_kaydet")
+      ? "Sunucuda bildirim tabloları yok. Yönetici supabase-duzeltme6.sql çalıştırmalı."
+      : "Bildirim açılamadı: " + m, "kotu");
+  } finally { btn.disabled = false; }
+}
+
+async function bildirimKapat() {
+  if (!netGerek()) return mesaj("📵 İnternet bağlantısı yok", "kotu");
+  const btn = $("bilKapatBtn"); btn.disabled = true;
+  try {
+    const kayit = await navigator.serviceWorker.ready;
+    const abone = await kayit.pushManager.getSubscription();
+    if (abone) {
+      const ep = abone.endpoint;
+      await sb.rpc("servis_push_sil", { p_sicil: S.sicil, p_hash: S.hash, p_endpoint: ep }).catch(() => {});
+      await abone.unsubscribe().catch(() => {});
+    }
+    _bilAbone = null;
+    bilYaz();
+    mesaj("🔕 Bildirimler kapatıldı", "bilgi");
+  } catch (e) {
+    mesaj("Kapatılamadı: " + (e.message || e), "kotu");
+  } finally { btn.disabled = false; }
+}
+
 function ac() {
   $("loginModal").classList.remove("acik");
   $("app").classList.add("acik");
@@ -443,6 +602,7 @@ function ac() {
   yonCiz(); vardiyaCiz(); tarihCiz();
   sunucuTarihOku();
   bugunYukle(); gecmisYukle();
+  bilOku();
 }
 
 async function sunucuTarihOku() {
@@ -697,6 +857,8 @@ $("gecmisSayfa").onclick = (e) => {
 };
 $("onayEvet").onclick = () => onayKapat(true);
 $("onayVazgec").onclick = () => onayKapat(false);
+$("bilBtn").onclick = bildirimAc;
+$("bilKapatBtn").onclick = bildirimKapat;
 $("onayModal").onclick = (e) => { if (e.target === $("onayModal")) onayKapat(false); };
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("onayModal").classList.contains("acik")) onayKapat(false);

@@ -1,0 +1,44 @@
+name: Bildirim Tara
+
+# Her 5 dakikada bir Supabase Edge Function "push-tara" cagrilir.
+# Gerekli secret: SUPABASE_PUSH_URL  (or. https://<proje>.supabase.co/functions/v1/push-tara)
+# Gerekli secret: SUPABASE_PUSH_KEY (Edge Function'a erismek icin anon key yeterli, fonksiyon kendi
+#                 service_role anahtariyla veritabanina baglanir)
+# Bu iki secret yoksa is sessizce atlanir, hata vermez.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tara:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Edge Function cagir
+        env:
+          PUSH_URL: ${{ secrets.SUPABASE_PUSH_URL }}
+          PUSH_KEY: ${{ secrets.SUPABASE_PUSH_KEY }}
+        run: |
+          if [ -z "$PUSH_URL" ] || [ -z "$PUSH_KEY" ]; then
+            echo "SUPABASE_PUSH_URL / SUPABASE_PUSH_KEY tanimli degil, atlandi."
+            exit 0
+          fi
+          echo "Cagriliyor: $PUSH_URL"
+          KOD=$(curl -s -o /tmp/yanit.json -w "%{http_code}" \
+            --max-time 60 \
+            -X POST "$PUSH_URL" \
+            -H "Authorization: Bearer $PUSH_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "HTTP $KOD"
+          cat /tmp/yanit.json || true
+          echo
+          if [ "$KOD" -lt 200 ] || [ "$KOD" -ge 300 ]; then
+            echo "Bildirim taramasi basarisiz (HTTP $KOD)"
+            exit 1
+          fi

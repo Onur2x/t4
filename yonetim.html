@@ -242,6 +242,20 @@ main h1{margin:0 0 14px}
           <div class="hint" id="cDurum" style="margin-top:10px">—</div>
         </div>
 
+        <div class="card" style="border-color:#1d4ed8">
+          <h2 style="color:#93c5fd">🔔 Bildirimler</h2>
+          <p class="hint" style="margin:0 0 12px">Telefon bildirimleri. Servis kalkışından belirtilen dakika önce hatırlatma gider; yeni talep ve iptallerde yöneticilere haber verilir. Bildirimi personel kendi telefonundan açar.</p>
+          <div class="filtre">
+            <div><label>Durum</label><select id="nAktif"><option value="1">Açık</option><option value="0">Kapalı</option></select></div>
+            <div><label>Sabah kalkış</label><input type="time" id="nSabah" step="60"></div>
+            <div><label>Akşam kalkış</label><input type="time" id="nAksam" step="60"></div>
+            <div><label>Kaç dk önce</label><input type="number" id="nDk" min="0" max="240" step="5"></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="nKaydetBtn" class="btn">💾 Kaydet</button></div>
+            <div style="flex:0 0 auto"><label>&nbsp;</label><button id="nYenileBtn" class="btn ghost">↻</button></div>
+          </div>
+          <div class="hint" id="nDurum" style="margin-top:10px">—</div>
+        </div>
+
         <div class="card" style="border-color:#7f1d1d">
           <h2 style="color:#fca5a5">🗑️ Geçmiş Talepleri Sil</h2>
           <p class="hint" style="margin:0 0 10px">Seçtiğin tarih aralığı ve filtreye uyan kayıtlar <b>tam olarak</b> silinir (bugün dahil, bitiş tarihi o günü kapsar). Önce <b>Önizle</b> ile listeyi gör, sonra onaylayarak sil. Listede her satırın yanındaki 🗑️ ile <b>tek tek</b>, üstteki <b>Toplu Sil</b> ile filtreye uyanların hepsi silinir. Silinen kayıt geri getirilemez.</p>
@@ -402,7 +416,7 @@ async function netKontrol(sessiz) {
   if (!varMi) return false;
   $("netDurum").innerHTML = '<span>✅</span> Bağlantı var';
   if (geldi && $("panel").style.display === "block") {
-    yukle(); personelYukle(); calismaYukle();
+    yukle(); personelYukle(); calismaYukle(); bildirimYukle();
     if (_gorunum === "ayarlar") silSayim();
   }
   return true;
@@ -435,7 +449,7 @@ function ac() {
     $("sBit").value = gunEkle(bugun(), -1);
   }
   gorunumAc("talepler");
-  yukle(); personelYukle(); calismaYukle();
+  yukle(); personelYukle(); calismaYukle(); bildirimYukle();
 }
 
 const GORUNUMLER = {
@@ -678,6 +692,49 @@ $("cKaydetBtn").onclick = async () => {
 };
 
 $("cYenileBtn").onclick = calismaYukle;
+
+async function bildirimYukle() {
+  try {
+    const { data, error } = await sb.rpc("servis_push_ayar_oku", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash
+    });
+    if (error) throw error;
+    if (!data || !data.ok) throw new Error("Okunamadı");
+    $("nAktif").value = data.aktif === "1" ? "1" : "0";
+    $("nSabah").value = data.sabah || "07:30";
+    $("nAksam").value = data.aksam || "20:30";
+    $("nDk").value = data.dk ?? 30;
+    $("nDurum").innerHTML =
+      `📱 Abone telefon: <b>${data.abone ?? 0}</b> • Yönetici: <b>${data.abone_admin ?? 0}</b>` +
+      `<div class="hint" style="margin-top:4px">Bildirim almak isteyen personel, personel ekranındaki "🔔 Bildirimleri Aç" düğmesine basmalı.</div>`;
+    return data;
+  } catch (e) {
+    $("nDurum").innerHTML = `🔴 Bildirim ayarı okunamadı: ${e.message}<div class="hint" style="margin-top:4px">supabase-duzeltme6.sql dosyasını çalıştırdın mı?</div>`;
+    return null;
+  }
+}
+
+$("nKaydetBtn").onclick = async () => {
+  const sabah = $("nSabah").value, aksam = $("nAksam").value;
+  const dk = Number($("nDk").value);
+  if (!sabah || !aksam) return alert("Sabah ve akşam kalkış saatini gir");
+  if (!Number.isFinite(dk) || dk < 0 || dk > 240) return alert("Kaç dakika önce: 0 – 240 arası olmalı");
+  const btn = $("nKaydetBtn"); btn.textContent = "…"; btn.disabled = true;
+  try {
+    const { data, error } = await sb.rpc("servis_push_ayar_guncelle", {
+      p_admin_sicil: A.sicil, p_admin_hash: A.hash,
+      p_aktif: $("nAktif").value, p_sabah: sabah, p_aksam: aksam, p_dk: dk
+    });
+    if (error) throw error;
+    if (!data || !data.ok) { alert("🔴 " + (data?.mesaj || "Kaydedilemedi")); return; }
+    alert(`✅ Bildirim ayarları kaydedildi\nSabah ${sabah} • Akşam ${aksam} • ${dk} dk önce • ${$("nAktif").value === "1" ? "Açık" : "Kapalı"}`);
+    bildirimYukle();
+  } catch (e) {
+    alert("🔴 " + (e.message || e));
+  } finally { btn.textContent = "💾 Kaydet"; btn.disabled = false; }
+};
+
+$("nYenileBtn").onclick = bildirimYukle;
 
 function silFiltre() {
   const bgn = bugun();
