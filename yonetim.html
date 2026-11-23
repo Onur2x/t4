@@ -700,12 +700,16 @@ async function bildirimYukle() {
     });
     if (error) throw error;
     if (!data || !data.ok) throw new Error("Okunamadı");
-    $("nAktif").value = data.aktif === "1" ? "1" : "0";
+    // Sunucu bu alanı boolean döndürüyor (true/false); eskiden "1" ile karşılaştırıldığı için hep Kapalı görünüyordu.
+    const acikMi = data.aktif === true || data.aktif === 1 || data.aktif === "1" || data.aktif === "true" || data.aktif === "t";
+    $("nAktif").value = acikMi ? "1" : "0";
     $("nSabah").value = data.sabah || "07:30";
     $("nAksam").value = data.aksam || "20:30";
     $("nDk").value = data.dk ?? 30;
     $("nDurum").innerHTML =
-      `📱 Abone telefon: <b>${data.abone ?? 0}</b> • Yönetici: <b>${data.abone_admin ?? 0}</b>` +
+      `${acikMi ? "🟢 Bildirimler <b>açık</b>" : "🔴 Bildirimler <b>kapalı</b>"}` +
+      ` • Sabah <b>${data.sabah || "07:30"}</b> • Akşam <b>${data.aksam || "20:30"}</b> • <b>${data.dk ?? 30}</b> dk önce` +
+      `<div style="margin-top:6px">📱 Abone telefon: <b>${data.abone ?? 0}</b> • Yönetici: <b>${data.abone_admin ?? 0}</b></div>` +
       `<div class="hint" style="margin-top:4px">Bildirim almak isteyen personel, personel ekranındaki "🔔 Bildirimleri Aç" düğmesine basmalı.</div>`;
     return data;
   } catch (e) {
@@ -723,7 +727,7 @@ $("nKaydetBtn").onclick = async () => {
   try {
     const { data, error } = await sb.rpc("servis_push_ayar_guncelle", {
       p_admin_sicil: A.sicil, p_admin_hash: A.hash,
-      p_aktif: $("nAktif").value, p_sabah: sabah, p_aksam: aksam, p_dk: dk
+      p_aktif: $("nAktif").value === "1", p_sabah: sabah, p_aksam: aksam, p_dk: dk
     });
     if (error) throw error;
     if (!data || !data.ok) { alert("🔴 " + (data?.mesaj || "Kaydedilemedi")); return; }
