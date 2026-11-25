@@ -558,7 +558,7 @@ function iosMu() {
 function standaloneMi() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone === true;
 }
-/*
+
 function bilYaz() {
   const d = $("bilDurum");
   d.className = "bilDurum";
@@ -593,7 +593,7 @@ function bilYaz() {
   }
   $("iosIpucu").hidden = !(iosMu() && !standaloneMi());
 }
-*/
+
 
 async function bilOku() {
   try {
