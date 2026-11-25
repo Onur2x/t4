@@ -252,6 +252,12 @@ input:focus{outline:2px solid #0ea5e9;border-color:#0ea5e9}
       <div id="bilTani" class="iosIpucu" hidden style="border-color:#7f1d1d"></div>
     </div>
 -->
+<button id="bilDurum" hidden></button>
+<button id="bilBtn" hidden></button>
+<button id="bilKapatBtn" hidden></button>
+<button id="bilTani" hidden></button>
+
+
     <div class="card">
       <div class="gecmisBas">
         <h3>Geçmiş taleplerim</h3>
@@ -552,7 +558,7 @@ function iosMu() {
 function standaloneMi() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || navigator.standalone === true;
 }
-
+/*
 function bilYaz() {
   const d = $("bilDurum");
   d.className = "bilDurum";
@@ -587,6 +593,7 @@ function bilYaz() {
   }
   $("iosIpucu").hidden = !(iosMu() && !standaloneMi());
 }
+*/
 
 async function bilOku() {
   try {
